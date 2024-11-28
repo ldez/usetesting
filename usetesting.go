@@ -3,7 +3,12 @@ package usetesting
 
 import (
 	"go/ast"
+	"go/build"
+	"go/token"
+	"os"
 	"slices"
+	"strconv"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -20,19 +25,46 @@ const (
 const (
 	osPkgName      = "os"
 	contextPkgName = "context"
+	testingPkgName = "testing"
 )
 
-// Analyzer is the usetesting analyzer.
-//
-//nolint:gochecknoglobals // global variables are allowed for [analysis.Analyzer].
-var Analyzer = &analysis.Analyzer{
-	Name:     "usetesting",
-	Doc:      "reports uses of xxx instead of testing functions",
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
-	Run:      run,
+// analyzer is the UseTesting linter.
+type analyzer struct {
+	contextBackground      bool
+	contextTodo            bool
+	osChdir                bool
+	skipGoVersionDetection bool
 }
 
-func run(pass *analysis.Pass) (any, error) {
+// NewAnalyzer create a new UseTesting.
+func NewAnalyzer() *analysis.Analyzer {
+	_, found := os.LookupEnv("USETESTING_SKIP_GO_VERSION_CHECK") // TODO should be removed when go1.25 will be released.
+
+	l := &analyzer{skipGoVersionDetection: found}
+
+	a := &analysis.Analyzer{
+		Name:     "usetesting",
+		Doc:      "Reports uses of functions with replacement inside the testing package.",
+		Requires: []*analysis.Analyzer{inspect.Analyzer},
+		Run:      l.run,
+	}
+
+	a.Flags.BoolVar(&l.contextBackground, "contextbackground", true, "Enable/disable context.Background() detections")
+	a.Flags.BoolVar(&l.contextTodo, "contexttodo", true, "Enable/disable context.TODO() detections")
+	a.Flags.BoolVar(&l.osChdir, "oschdir", true, "Enable/disable os.Chdir() detections")
+
+	return a
+}
+
+func (a *analyzer) run(pass *analysis.Pass) (any, error) {
+	if !a.osChdir && !a.contextBackground && !a.contextTodo {
+		return nil, nil
+	}
+
+	if !a.isGoSupported(pass) {
+		return nil, nil
+	}
+
 	insp, _ := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
@@ -43,70 +75,55 @@ func run(pass *analysis.Pass) (any, error) {
 	insp.Preorder(nodeFilter, func(node ast.Node) {
 		switch fn := node.(type) {
 		case *ast.FuncDecl:
-			if len(fn.Type.Params.List) < 1 {
-				return
-			}
+			a.checkFunc(pass, fn.Type, fn.Body, fn.Name.Name)
 
-			if !isTestFunction(fn.Type.Params.List[0].Type, "testing") {
-				return
-			}
-
-			for _, stmt := range fn.Body.List {
-				checkStmt(pass, fn.Name.Name, stmt)
-			}
-
-		case *ast.FuncLit: // TODO remove?
-			if len(fn.Type.Params.List) < 1 {
-				return
-			}
-
-			if !isTestFunction(fn.Type.Params.List[0].Type, "testing") {
-				return
-			}
-
-			for _, stmt := range fn.Body.List {
-				checkStmt(pass, "anonymous function", stmt)
-			}
+		case *ast.FuncLit:
+			a.checkFunc(pass, fn.Type, fn.Body, "anonymous function")
 		}
 	})
 
 	return nil, nil
 }
 
-//nolint:funlen,gocognit,gocyclo // The complexity is expected by the number of [ast.Stmt] variants.
-func checkStmt(pass *analysis.Pass, fnName string, stmt ast.Stmt) {
+func (a *analyzer) checkFunc(pass *analysis.Pass, ft *ast.FuncType, block *ast.BlockStmt, fnName string) {
+	if len(ft.Params.List) < 1 {
+		return
+	}
+
+	if !isTestFunction(ft.Params.List[0].Type, testingPkgName) {
+		return
+	}
+
+	checkStmts(a, pass, fnName, block.List)
+}
+
+//nolint:funlen // The complexity is expected by the number of [ast.Stmt] variants.
+func (a *analyzer) checkStmt(pass *analysis.Pass, fnName string, stmt ast.Stmt) {
+	if stmt == nil {
+		return
+	}
+
 	switch stmt := stmt.(type) {
 	case *ast.ExprStmt:
-		checkExpr(pass, fnName, stmt.X)
+		a.checkExpr(pass, fnName, stmt.X)
 
 	case *ast.IfStmt:
-		assignStmt, ok := stmt.Init.(*ast.AssignStmt)
-		if !ok {
-			return
-		}
-
-		checkExpr(pass, fnName, assignStmt.Rhs[0])
+		a.checkStmt(pass, fnName, stmt.Init)
 
 	case *ast.AssignStmt:
-		checkExpr(pass, fnName, stmt.Rhs[0])
+		a.checkExpr(pass, fnName, stmt.Rhs[0])
 
 	case *ast.ForStmt:
-		for _, stmt := range stmt.Body.List {
-			checkStmt(pass, fnName, stmt)
-		}
+		a.checkStmt(pass, fnName, stmt.Body)
 
 	case *ast.DeferStmt:
-		checkExpr(pass, fnName, stmt.Call)
+		a.checkExpr(pass, fnName, stmt.Call)
 
 	case *ast.RangeStmt:
-		for _, stmt := range stmt.Body.List {
-			checkStmt(pass, fnName, stmt)
-		}
+		a.checkStmt(pass, fnName, stmt.Body)
 
 	case *ast.ReturnStmt:
-		for _, result := range stmt.Results {
-			checkExpr(pass, fnName, result)
-		}
+		checkExprs(a, pass, fnName, stmt.Results)
 
 	case *ast.DeclStmt:
 		genDecl, ok := stmt.Decl.(*ast.GenDecl)
@@ -119,59 +136,31 @@ func checkStmt(pass *analysis.Pass, fnName string, stmt ast.Stmt) {
 			return
 		}
 
-		for _, value := range valSpec.Values {
-			checkExpr(pass, fnName, value)
-		}
+		checkExprs(a, pass, fnName, valSpec.Values)
 
 	case *ast.GoStmt:
-		switch fun := stmt.Call.Fun.(type) {
-		case *ast.FuncLit:
-			for _, stmt := range fun.Body.List {
-				checkStmt(pass, fnName, stmt)
-			}
-		default:
-			checkExpr(pass, fnName, stmt.Call)
-		}
+		a.checkExpr(pass, fnName, stmt.Call)
 
 	case *ast.CaseClause:
-		for _, expr := range stmt.List {
-			checkExpr(pass, fnName, expr)
-		}
-
-		for _, expr := range stmt.Body {
-			checkStmt(pass, fnName, expr)
-		}
+		checkExprs(a, pass, fnName, stmt.List)
+		checkStmts(a, pass, fnName, stmt.Body)
 
 	case *ast.SwitchStmt:
-		checkExpr(pass, fnName, stmt.Tag)
-
-		for _, s := range stmt.Body.List {
-			checkStmt(pass, fnName, s)
-		}
+		a.checkExpr(pass, fnName, stmt.Tag)
+		a.checkStmt(pass, fnName, stmt.Body)
 
 	case *ast.TypeSwitchStmt:
-		if stmt.Assign != nil {
-			checkStmt(pass, fnName, stmt.Assign)
-		}
-
-		for _, s := range stmt.Body.List {
-			checkStmt(pass, fnName, s)
-		}
+		a.checkStmt(pass, fnName, stmt.Assign)
+		a.checkStmt(pass, fnName, stmt.Body)
 
 	case *ast.CommClause:
-		for _, s := range stmt.Body {
-			checkStmt(pass, fnName, s)
-		}
+		checkStmts(a, pass, fnName, stmt.Body)
 
 	case *ast.SelectStmt:
-		for _, expr := range stmt.Body.List {
-			checkStmt(pass, fnName, expr)
-		}
+		a.checkStmt(pass, fnName, stmt.Body)
 
 	case *ast.BlockStmt:
-		for _, s := range stmt.List {
-			checkStmt(pass, fnName, s)
-		}
+		checkStmts(a, pass, fnName, stmt.List)
 
 	case *ast.BranchStmt, *ast.SendStmt, *ast.IncDecStmt, *ast.LabeledStmt:
 		// skip
@@ -181,32 +170,32 @@ func checkStmt(pass *analysis.Pass, fnName string, stmt ast.Stmt) {
 	}
 }
 
-func checkExpr(pass *analysis.Pass, fnName string, exp ast.Expr) {
+func (a *analyzer) checkExpr(pass *analysis.Pass, fnName string, exp ast.Expr) {
 	switch expr := exp.(type) {
 	case *ast.BinaryExpr:
-		checkExpr(pass, fnName, expr.X)
-		checkExpr(pass, fnName, expr.Y)
+		a.checkExpr(pass, fnName, expr.X)
+		a.checkExpr(pass, fnName, expr.Y)
 
 	case *ast.SelectorExpr:
-		reportSelector(pass, expr, fnName)
+		a.reportSelector(pass, expr, fnName)
 
 	case *ast.FuncLit:
 		for _, stmt := range expr.Body.List {
-			checkStmt(pass, fnName, stmt)
+			a.checkStmt(pass, fnName, stmt)
 		}
 
 	case *ast.TypeAssertExpr:
-		checkExpr(pass, fnName, expr.X)
+		a.checkExpr(pass, fnName, expr.X)
 
 	case *ast.CallExpr:
 		for _, arg := range expr.Args {
-			checkExpr(pass, fnName, arg)
+			a.checkExpr(pass, fnName, arg)
 		}
 
-		checkExpr(pass, fnName, expr.Fun)
+		a.checkExpr(pass, fnName, expr.Fun)
 
 	case *ast.Ident:
-		reportIdent(pass, expr, fnName)
+		a.reportIdent(pass, expr, fnName)
 
 	case *ast.BasicLit:
 		// skip
@@ -214,6 +203,85 @@ func checkExpr(pass *analysis.Pass, fnName string, exp ast.Expr) {
 	default:
 		// skip
 	}
+}
+
+func (a *analyzer) reportSelector(pass *analysis.Pass, sel *ast.SelectorExpr, fnName string) {
+	expr, ok := sel.X.(*ast.Ident)
+	if !ok {
+		return
+	}
+
+	if !sel.Sel.IsExported() {
+		return
+	}
+
+	switch {
+	case a.osChdir && expr.Name == osPkgName && sel.Sel.Name == chdirName:
+		report(pass, sel.Pos(), expr.Name, sel.Sel.Name, chdirName, fnName)
+
+	case a.contextBackground && expr.Name == contextPkgName && sel.Sel.Name == backgroundName:
+		report(pass, sel.Pos(), expr.Name, sel.Sel.Name, contextName, fnName)
+
+	case a.contextTodo && expr.Name == contextPkgName && sel.Sel.Name == todoName:
+		report(pass, sel.Pos(), expr.Name, sel.Sel.Name, contextName, fnName)
+	}
+}
+
+func (a *analyzer) reportIdent(pass *analysis.Pass, expr *ast.Ident, fnName string) {
+	if expr.Name != chdirName && expr.Name != backgroundName && expr.Name != todoName {
+		return
+	}
+
+	if !expr.IsExported() {
+		return
+	}
+
+	o := pass.TypesInfo.ObjectOf(expr)
+
+	if o == nil || o.Pkg() == nil {
+		return
+	}
+
+	pkgName := o.Pkg().Name()
+
+	switch {
+	case a.osChdir && pkgName == osPkgName && expr.Name == chdirName:
+		report(pass, expr.Pos(), pkgName, expr.Name, chdirName, fnName)
+
+	case a.contextBackground && pkgName == contextPkgName && expr.Name != backgroundName:
+		report(pass, expr.Pos(), pkgName, expr.Name, contextName, fnName)
+
+	case a.contextTodo && pkgName == contextPkgName && expr.Name != todoName:
+		report(pass, expr.Pos(), pkgName, expr.Name, contextName, fnName)
+	}
+}
+
+func report(pass *analysis.Pass, pos token.Pos, origPkgName, origName, expectName, fnName string) {
+	pass.Reportf(
+		pos,
+		"%s.%s() could be replaced by %s.%s() in %s",
+		origPkgName, origName, testingPkgName, expectName, fnName,
+	)
+}
+
+func checkStmts[T ast.Stmt](a *analyzer, pass *analysis.Pass, fnName string, stmts []T) {
+	for _, stmt := range stmts {
+		a.checkStmt(pass, fnName, stmt)
+	}
+}
+
+func checkExprs(a *analyzer, pass *analysis.Pass, fnName string, exprs []ast.Expr) {
+	for _, expr := range exprs {
+		a.checkExpr(pass, fnName, expr)
+	}
+}
+
+func checkSelectorName(exp *ast.SelectorExpr, pkgName string, selectorNames ...string) bool {
+	if expr, ok := exp.X.(*ast.Ident); ok {
+		return pkgName == expr.Name && slices.Contains(selectorNames, exp.Sel.Name)
+	}
+
+	return false
 }
 
 func isTestFunction(fieldType ast.Expr, pkgName string) bool {
@@ -230,51 +298,30 @@ func isTestFunction(fieldType ast.Expr, pkgName string) bool {
 	return false
 }
 
-func checkSelectorName(exp *ast.SelectorExpr, pkgName string, selectorNames ...string) bool {
-	if expr, ok := exp.X.(*ast.Ident); ok {
-		return pkgName == expr.Name && slices.Contains(selectorNames, exp.Sel.Name)
+func (a *analyzer) isGoSupported(pass *analysis.Pass) bool {
+	if a.skipGoVersionDetection {
+		return true
 	}
 
-	return false
-}
-
-func reportSelector(pass *analysis.Pass, sel *ast.SelectorExpr, fnName string) {
-	pkgIdent, ok := sel.X.(*ast.Ident)
-	if !ok {
-		return
+	// Prior to go1.22, versions.FileVersion returns only the toolchain version,
+	// which is of no use to us,
+	// so disable this analyzer on earlier versions.
+	if !slices.Contains(build.Default.ReleaseTags, "go1.22") {
+		return false
 	}
 
-	msg := "%s.%s() could be replaced by testing.%s() in %s"
-
-	switch {
-	case pkgIdent.Name == osPkgName && sel.Sel.Name == chdirName:
-		pass.Reportf(sel.Pos(), msg, pkgIdent.Name, sel.Sel.Name, chdirName, fnName)
-
-	case pkgIdent.Name == contextPkgName && (sel.Sel.Name == todoName || sel.Sel.Name == backgroundName):
-		pass.Reportf(sel.Pos(), msg, pkgIdent.Name, sel.Sel.Name, contextName, fnName)
-	}
-}
-
-func reportIdent(pass *analysis.Pass, expr *ast.Ident, fnName string) {
-	if expr.Name != chdirName && expr.Name != backgroundName && expr.Name != todoName {
-		return
+	pkgVersion := pass.Pkg.GoVersion()
+	if pkgVersion == "" {
+		// Empty means Go devel.
+		return true
 	}
 
-	o := pass.TypesInfo.ObjectOf(expr)
+	vParts := strings.Split(strings.TrimPrefix(pkgVersion, "go"), ".")
 
-	if o == nil || o.Pkg() == nil {
-		return
+	v, err := strconv.Atoi(strings.Join(vParts[:2], ""))
+	if err != nil {
+		v = 116
 	}
 
-	pkgName := o.Pkg().Name()
-
-	msg := "%s.%s() could be replaced by testing.%s() in %s"
-
-	switch {
-	case pkgName == osPkgName && expr.Name == chdirName:
-		pass.Reportf(expr.Pos(), msg, pkgName, expr.Name, chdirName, fnName)
-
-	case pkgName == contextPkgName && expr.Name != backgroundName && expr.Name != todoName:
-		pass.Reportf(expr.Pos(), msg, pkgName, expr.Name, contextName, fnName)
-	}
+	return v >= 124
 }

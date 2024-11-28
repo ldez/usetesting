@@ -7,18 +7,13 @@ linters:
     - cyclop # duplicate of gocyclo
     - lll
     - dupl
-    - wsl
     - nlreturn
-    - mnd
-    - err113
-    - wrapcheck
     - exhaustive
     - exhaustruct
     - testpackage
     - tparallel
     - paralleltest
     - prealloc
-    - forcetypeassert
     - varnamelen
     - nilnil
     - errchkjson
@@ -29,6 +24,9 @@ linters-settings:
     enable-all: true
     disable:
       - fieldalignment
+  mnd:
+    ignored-numbers:
+      - "124"
   gocyclo:
     min-complexity: 20
   goconst:
@@ -52,6 +50,9 @@ linters-settings:
             desc: not allowed
           - pkg: "github.com/pkg/errors"
             desc: Should be replaced by standard lib errors package
+  wsl:
+    force-case-trailing-whitespace: 1
+    allow-trailing-comment: true
   gocritic:
     enabled-tags:
       - diagnostic
@@ -70,6 +71,13 @@ issues:
   exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
+
+output:
+  show-stats: true
+  sort-results: true
+  sort-order:
+    - linter
+    - file
 
 run:
   timeout: 5m

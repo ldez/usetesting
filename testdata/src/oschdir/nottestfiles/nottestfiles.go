@@ -72,6 +72,10 @@ func FunctionGoStmt(t *testing.T) {
 	}()
 }
 
+func FunctionGoStmt_arg(t *testing.T) {
+	go func(err error) {}(os.Chdir("")) // want `os\.Chdir\(\) could be replaced by testing\.Chdir\(\) in .+`
+}
+
 func FunctionCallExpr_recursive(t *testing.T) {
 	foo(t, "")
 }
