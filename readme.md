@@ -68,7 +68,7 @@ Flags:
 
 ```go
 func TestExample(t *testing.T) {
-	os.MkdirTemp("", "")
+	os.MkdirTemp("a", "b")
 	// ...
 }
 ```
@@ -104,7 +104,7 @@ func TestExample(t *testing.T) {
 
 ```go
 func TestExample(t *testing.T) {
-	os.Setenv("", "")
+	os.Setenv("A", "b")
 	// ...
 }
 ```
@@ -113,7 +113,7 @@ It can be replaced by:
 
 ```go
 func TestExample(t *testing.T) {
-	t.Setenv("", "")
+	t.Setenv("A", "b")
     // ...
 }
 ```
@@ -122,7 +122,7 @@ func TestExample(t *testing.T) {
 
 ```go
 func TestExample(t *testing.T) {
-	os.Chdir("")
+	os.Chdir("x")
 	// ...
 }
 ```
@@ -131,7 +131,7 @@ It can be replaced by:
 
 ```go
 func TestExample(t *testing.T) {
-	t.Chdir("")
+	t.Chdir("x")
     // ...
 }
 ```
