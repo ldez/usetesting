@@ -94,7 +94,7 @@ func TestExample(t *testing.T) {
 }
 ```
 
-### `os.Chdir`
+### `os.Chdir` (Go >= 1.24)
 
 ```go
 func TestExample(t *testing.T) {
@@ -112,7 +112,7 @@ func TestExample(t *testing.T) {
 }
 ```
 
-### `context.Background`
+### `context.Background` (Go >= 1.24)
 
 ```go
 func TestExample(t *testing.T) {
@@ -130,7 +130,7 @@ func TestExample(t *testing.T) {
 }
 ```
 
-### `context.TODO`
+### `context.TODO` (Go >= 1.24)
 
 ```go
 func TestExample(t *testing.T) {
