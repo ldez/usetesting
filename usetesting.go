@@ -267,8 +267,8 @@ func (a *analyzer) report(pass *analysis.Pass, pos token.Pos, origPkgName, origN
 func report(pass *analysis.Pass, pos token.Pos, origPkgName, origName, expectName, fnName string) {
 	pass.Reportf(
 		pos,
-		"%s.%s() could be replaced by %s.%s() in %s",
-		origPkgName, origName, testingPkgName, expectName, fnName,
+		"%s.%s() could be replaced by <t/b/tb>.%s() in %s",
+		origPkgName, origName, expectName, fnName,
 	)
 }
 
