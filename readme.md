@@ -12,16 +12,23 @@ Recommended.
 linters-settings:
   usetesting:
     # Enable/disable `context.Background()` detections.
+    # Disabled if Go < 1.24.
     # Default: true
-    contextbackground: false
+    context-background: false
     
     # Enable/disable `context.TODO()` detections.
+    # Disabled if Go < 1.24.
     # Default: true
-    contexttodo: false
+    context-todo: false
     
     # Enable/disable `os.Chdir()` detections.
+    # Disabled if Go < 1.24.
     # Default: true
-    oschdir: false
+    os-chdir: false
+    
+    # Enable/disable `os.MkdirTemp()` detections.
+    # Default: true
+    os-mkdir-temp: false
 ```
 
 ### As a CLI
@@ -38,11 +45,31 @@ Flags:
         Enable/disable context.TODO() detections (default true)
   -oschdir
         Enable/disable os.Chdir() detections (default true)
+  -osmkdirtemp
+        Enable/disable os.MkdirTemp() detections (default true)
 
 ...
 ```
 
 ## Examples
+
+### `os.MkdirTemp`
+
+```go
+func TestExample(t *testing.T) {
+	os.MkdirTemp("", "")
+	// ...
+}
+```
+
+It can be replaced by:
+
+```go
+func TestExample(t *testing.T) {
+	t.TempDir()
+    // ...
+}
+```
 
 ### `os.Chdir`
 

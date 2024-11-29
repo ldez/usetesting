@@ -17,6 +17,8 @@ import (
 
 const (
 	chdirName      = "Chdir"
+	mkdirTempName  = "MkdirTemp"
+	tempDirName    = "TempDir"
 	backgroundName = "Background"
 	todoName       = "TODO"
 	contextName    = "Context"
@@ -33,7 +35,9 @@ type analyzer struct {
 	contextBackground      bool
 	contextTodo            bool
 	osChdir                bool
+	osMkdirTemp            bool
 	skipGoVersionDetection bool
+	geGo124                bool
 }
 
 // NewAnalyzer create a new UseTesting.
@@ -52,18 +56,17 @@ func NewAnalyzer() *analysis.Analyzer {
 	a.Flags.BoolVar(&l.contextBackground, "contextbackground", true, "Enable/disable context.Background() detections")
 	a.Flags.BoolVar(&l.contextTodo, "contexttodo", true, "Enable/disable context.TODO() detections")
 	a.Flags.BoolVar(&l.osChdir, "oschdir", true, "Enable/disable os.Chdir() detections")
+	a.Flags.BoolVar(&l.osMkdirTemp, "osmkdirtemp", true, "Enable/disable os.MkdirTemp() detections")
 
 	return a
 }
 
 func (a *analyzer) run(pass *analysis.Pass) (any, error) {
-	if !a.osChdir && !a.contextBackground && !a.contextTodo {
+	if !a.osChdir && !a.contextBackground && !a.contextTodo && !a.osMkdirTemp {
 		return nil, nil
 	}
 
-	if !a.isGoSupported(pass) {
-		return nil, nil
-	}
+	a.geGo124 = a.isGoSupported(pass)
 
 	insp, _ := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
@@ -215,20 +218,11 @@ func (a *analyzer) reportSelector(pass *analysis.Pass, sel *ast.SelectorExpr, fn
 		return
 	}
 
-	switch {
-	case a.osChdir && expr.Name == osPkgName && sel.Sel.Name == chdirName:
-		report(pass, sel.Pos(), expr.Name, sel.Sel.Name, chdirName, fnName)
-
-	case a.contextBackground && expr.Name == contextPkgName && sel.Sel.Name == backgroundName:
-		report(pass, sel.Pos(), expr.Name, sel.Sel.Name, contextName, fnName)
-
-	case a.contextTodo && expr.Name == contextPkgName && sel.Sel.Name == todoName:
-		report(pass, sel.Pos(), expr.Name, sel.Sel.Name, contextName, fnName)
-	}
+	a.report(pass, sel.Pos(), expr.Name, sel.Sel.Name, fnName)
 }
 
 func (a *analyzer) reportIdent(pass *analysis.Pass, expr *ast.Ident, fnName string) {
-	if expr.Name != chdirName && expr.Name != backgroundName && expr.Name != todoName {
+	if !slices.Contains([]string{chdirName, mkdirTempName, backgroundName, todoName}, expr.Name) {
 		return
 	}
 
@@ -244,15 +238,22 @@ func (a *analyzer) reportIdent(pass *analysis.Pass, expr *ast.Ident, fnName stri
 
 	pkgName := o.Pkg().Name()
 
+	a.report(pass, expr.Pos(), pkgName, expr.Name, fnName)
+}
+
+func (a *analyzer) report(pass *analysis.Pass, pos token.Pos, origPkgName, origName, fnName string) {
 	switch {
-	case a.osChdir && pkgName == osPkgName && expr.Name == chdirName:
-		report(pass, expr.Pos(), pkgName, expr.Name, chdirName, fnName)
+	case a.osMkdirTemp && origPkgName == osPkgName && origName == mkdirTempName:
+		report(pass, pos, origPkgName, origName, tempDirName, fnName)
 
-	case a.contextBackground && pkgName == contextPkgName && expr.Name != backgroundName:
-		report(pass, expr.Pos(), pkgName, expr.Name, contextName, fnName)
+	case a.geGo124 && a.osChdir && origPkgName == osPkgName && origName == chdirName:
+		report(pass, pos, origPkgName, origName, chdirName, fnName)
 
-	case a.contextTodo && pkgName == contextPkgName && expr.Name != todoName:
-		report(pass, expr.Pos(), pkgName, expr.Name, contextName, fnName)
+	case a.geGo124 && a.contextBackground && origPkgName == contextPkgName && origName == backgroundName:
+		report(pass, pos, origPkgName, origName, contextName, fnName)
+
+	case a.geGo124 && a.contextTodo && origPkgName == contextPkgName && origName == todoName:
+		report(pass, pos, origPkgName, origName, contextName, fnName)
 	}
 }
 
@@ -276,16 +277,8 @@ func checkExprs(a *analyzer, pass *analysis.Pass, fnName string, exprs []ast.Exp
 	}
 }
 
-func checkSelectorName(exp *ast.SelectorExpr, pkgName string, selectorNames ...string) bool {
-	if expr, ok := exp.X.(*ast.Ident); ok {
-		return pkgName == expr.Name && slices.Contains(selectorNames, exp.Sel.Name)
-	}
-
-	return false
-}
-
-func isTestFunction(fieldType ast.Expr, pkgName string) bool {
-	switch ft := fieldType.(type) {
+func isTestFunction(argType ast.Expr, pkgName string) bool {
+	switch ft := argType.(type) {
 	case *ast.StarExpr:
 		if se, ok := ft.X.(*ast.SelectorExpr); ok {
 			return checkSelectorName(se, pkgName, "T", "B", "F")
@@ -293,6 +286,14 @@ func isTestFunction(fieldType ast.Expr, pkgName string) bool {
 
 	case *ast.SelectorExpr:
 		return checkSelectorName(ft, pkgName, "TB")
+	}
+
+	return false
+}
+
+func checkSelectorName(exp *ast.SelectorExpr, pkgName string, selectorNames ...string) bool {
+	if expr, ok := exp.X.(*ast.Ident); ok {
+		return pkgName == expr.Name && slices.Contains(selectorNames, exp.Sel.Name)
 	}
 
 	return false

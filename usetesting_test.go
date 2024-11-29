@@ -25,6 +25,11 @@ func TestAnalyzer(t *testing.T) {
 		{dir: "contexttodo/dot"},
 		{dir: "contexttodo/nottestfiles"},
 		{dir: "contexttodo/disable", options: map[string]string{"contexttodo": "false"}},
+
+		{dir: "osmkdirtemp/basic"},
+		{dir: "osmkdirtemp/dot"},
+		{dir: "osmkdirtemp/nottestfiles"},
+		{dir: "osmkdirtemp/disable", options: map[string]string{"osmkdirtemp": "false"}},
 	}
 
 	for _, test := range testCases {
