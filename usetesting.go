@@ -37,6 +37,7 @@ type analyzer struct {
 	contextTodo       bool
 	osChdir           bool
 	osMkdirTemp       bool
+	osTempDir         bool
 	osSetenv          bool
 
 	fieldNames []string
@@ -53,6 +54,7 @@ func NewAnalyzer() *analysis.Analyzer {
 		fieldNames: []string{
 			chdirName,
 			mkdirTempName,
+			tempDirName,
 			setenvName,
 			backgroundName,
 			todoName,
@@ -72,6 +74,7 @@ func NewAnalyzer() *analysis.Analyzer {
 	a.Flags.BoolVar(&l.osChdir, "oschdir", true, "Enable/disable os.Chdir() detections")
 	a.Flags.BoolVar(&l.osMkdirTemp, "osmkdirtemp", true, "Enable/disable os.MkdirTemp() detections")
 	a.Flags.BoolVar(&l.osSetenv, "ossetenv", false, "Enable/disable os.Setenv() detections")
+	a.Flags.BoolVar(&l.osTempDir, "ostempdir", false, "Enable/disable os.TempDir() detections")
 
 	return a
 }
@@ -256,9 +259,13 @@ func (a *analyzer) reportIdent(pass *analysis.Pass, expr *ast.Ident, fnName stri
 	a.report(pass, expr.Pos(), pkgName, expr.Name, fnName)
 }
 
+//nolint:gocyclo // The complexity is expected by the cases to check.
 func (a *analyzer) report(pass *analysis.Pass, pos token.Pos, origPkgName, origName, fnName string) {
 	switch {
 	case a.osMkdirTemp && origPkgName == osPkgName && origName == mkdirTempName:
+		report(pass, pos, origPkgName, origName, tempDirName, fnName)
+
+	case a.osTempDir && origPkgName == osPkgName && origName == tempDirName:
 		report(pass, pos, origPkgName, origName, tempDirName, fnName)
 
 	case a.osSetenv && origPkgName == osPkgName && origName == setenvName:
