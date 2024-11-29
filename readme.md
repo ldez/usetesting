@@ -29,6 +29,10 @@ linters-settings:
     # Enable/disable `os.MkdirTemp()` detections.
     # Default: true
     os-mkdir-temp: false
+    
+    # Enable/disable `os.Setenv()` detections.
+    # Default: false
+    os-setenv: true
 ```
 
 ### As a CLI
@@ -47,7 +51,8 @@ Flags:
         Enable/disable os.Chdir() detections (default true)
   -osmkdirtemp
         Enable/disable os.MkdirTemp() detections (default true)
-
+  -ossetenv
+        Enable/disable os.Setenv() detections (default true)
 ...
 ```
 
@@ -67,6 +72,24 @@ It can be replaced by:
 ```go
 func TestExample(t *testing.T) {
 	t.TempDir()
+    // ...
+}
+```
+
+### `os.Setenv`
+
+```go
+func TestExample(t *testing.T) {
+	os.Setenv("", "")
+	// ...
+}
+```
+
+It can be replaced by:
+
+```go
+func TestExample(t *testing.T) {
+	t.Setenv("", "")
     // ...
 }
 ```

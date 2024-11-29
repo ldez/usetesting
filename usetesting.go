@@ -18,6 +18,7 @@ import (
 const (
 	chdirName      = "Chdir"
 	mkdirTempName  = "MkdirTemp"
+	setenvName     = "Setenv"
 	tempDirName    = "TempDir"
 	backgroundName = "Background"
 	todoName       = "TODO"
@@ -32,10 +33,12 @@ const (
 
 // analyzer is the UseTesting linter.
 type analyzer struct {
-	contextBackground      bool
-	contextTodo            bool
-	osChdir                bool
-	osMkdirTemp            bool
+	contextBackground bool
+	contextTodo       bool
+	osChdir           bool
+	osMkdirTemp       bool
+	osSetenv          bool
+
 	skipGoVersionDetection bool
 	geGo124                bool
 }
@@ -57,12 +60,13 @@ func NewAnalyzer() *analysis.Analyzer {
 	a.Flags.BoolVar(&l.contextTodo, "contexttodo", true, "Enable/disable context.TODO() detections")
 	a.Flags.BoolVar(&l.osChdir, "oschdir", true, "Enable/disable os.Chdir() detections")
 	a.Flags.BoolVar(&l.osMkdirTemp, "osmkdirtemp", true, "Enable/disable os.MkdirTemp() detections")
+	a.Flags.BoolVar(&l.osSetenv, "ossetenv", false, "Enable/disable os.Setenv() detections")
 
 	return a
 }
 
 func (a *analyzer) run(pass *analysis.Pass) (any, error) {
-	if !a.osChdir && !a.contextBackground && !a.contextTodo && !a.osMkdirTemp {
+	if !a.osChdir && !a.contextBackground && !a.contextTodo && !a.osMkdirTemp && !a.osSetenv {
 		return nil, nil
 	}
 
@@ -222,7 +226,7 @@ func (a *analyzer) reportSelector(pass *analysis.Pass, sel *ast.SelectorExpr, fn
 }
 
 func (a *analyzer) reportIdent(pass *analysis.Pass, expr *ast.Ident, fnName string) {
-	if !slices.Contains([]string{chdirName, mkdirTempName, backgroundName, todoName}, expr.Name) {
+	if !slices.Contains([]string{chdirName, mkdirTempName, setenvName, backgroundName, todoName}, expr.Name) {
 		return
 	}
 
@@ -245,6 +249,9 @@ func (a *analyzer) report(pass *analysis.Pass, pos token.Pos, origPkgName, origN
 	switch {
 	case a.osMkdirTemp && origPkgName == osPkgName && origName == mkdirTempName:
 		report(pass, pos, origPkgName, origName, tempDirName, fnName)
+
+	case a.osSetenv && origPkgName == osPkgName && origName == setenvName:
+		report(pass, pos, origPkgName, origName, setenvName, fnName)
 
 	case a.geGo124 && a.osChdir && origPkgName == osPkgName && origName == chdirName:
 		report(pass, pos, origPkgName, origName, chdirName, fnName)
