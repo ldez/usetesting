@@ -198,4 +198,6 @@ func TestExample(t *testing.T) {
 
 ## References
 
-- https://tip.golang.org/doc/go1.24#testingpkgtesting
+- https://tip.golang.org/doc/go1.15#testingpkgtesting (`TempDir`)
+- https://tip.golang.org/doc/go1.17#testingpkgtesting (`SetEnv`)
+- https://tip.golang.org/doc/go1.24#testingpkgtesting (`Chdir`, `Context`)
