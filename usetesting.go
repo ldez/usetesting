@@ -39,15 +39,26 @@ type analyzer struct {
 	osMkdirTemp       bool
 	osSetenv          bool
 
+	fieldNames []string
+
 	skipGoVersionDetection bool
 	geGo124                bool
 }
 
 // NewAnalyzer create a new UseTesting.
 func NewAnalyzer() *analysis.Analyzer {
-	_, found := os.LookupEnv("USETESTING_SKIP_GO_VERSION_CHECK") // TODO should be removed when go1.25 will be released.
+	_, skip := os.LookupEnv("USETESTING_SKIP_GO_VERSION_CHECK") // TODO should be removed when go1.25 will be released.
 
-	l := &analyzer{skipGoVersionDetection: found}
+	l := &analyzer{
+		fieldNames: []string{
+			chdirName,
+			mkdirTempName,
+			setenvName,
+			backgroundName,
+			todoName,
+		},
+		skipGoVersionDetection: skip,
+	}
 
 	a := &analysis.Analyzer{
 		Name:     "usetesting",
@@ -226,7 +237,7 @@ func (a *analyzer) reportSelector(pass *analysis.Pass, sel *ast.SelectorExpr, fn
 }
 
 func (a *analyzer) reportIdent(pass *analysis.Pass, expr *ast.Ident, fnName string) {
-	if !slices.Contains([]string{chdirName, mkdirTempName, setenvName, backgroundName, todoName}, expr.Name) {
+	if !slices.Contains(a.fieldNames, expr.Name) {
 		return
 	}
 
