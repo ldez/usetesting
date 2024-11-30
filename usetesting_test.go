@@ -40,6 +40,11 @@ func TestAnalyzer(t *testing.T) {
 		{dir: "ostempdir/dot", options: map[string]string{"ostempdir": "true"}},
 		{dir: "ostempdir/nottestfiles", options: map[string]string{"ostempdir": "true"}},
 		{dir: "ostempdir/disable"},
+
+		{dir: "oscreatetemp/basic"},
+		{dir: "oscreatetemp/dot"},
+		{dir: "oscreatetemp/nottestfiles"},
+		{dir: "oscreatetemp/disable", options: map[string]string{"oscreatetemp": "false"}},
 	}
 
 	for _, test := range testCases {
