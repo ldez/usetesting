@@ -2,6 +2,8 @@
 
 Detects when some calls can be replaced by methods from the testing package.
 
+[![Sponsor](https://img.shields.io/badge/Sponsor%20me-%E2%9D%A4%EF%B8%8F-pink)](https://github.com/sponsors/ldez)
+
 ## Usages
 
 ### Inside golangci-lint
