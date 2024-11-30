@@ -11,32 +11,36 @@ Recommended.
 ```yml
 linters-settings:
   usetesting:
-    # Enable/disable `context.Background()` detections.
-    # Disabled if Go < 1.24.
+    # Enable/disable `os.CreateTemp("", ...)` detections.
     # Default: true
-    context-background: false
-    
-    # Enable/disable `context.TODO()` detections.
-    # Disabled if Go < 1.24.
+    os-create-temp: false
+
+    # Enable/disable `os.MkdirTemp()` detections.
     # Default: true
-    context-todo: false
+    os-mkdir-temp: false
+
+    # Enable/disable `os.Setenv()` detections.
+    # Default: false
+    os-setenv: true
+
+    # Enable/disable `os.TempDir()` detections.
+    # Default: false
+    os-temp-dir: true
     
     # Enable/disable `os.Chdir()` detections.
     # Disabled if Go < 1.24.
     # Default: true
     os-chdir: false
-    
-    # Enable/disable `os.MkdirTemp()` detections.
+
+    # Enable/disable `context.Background()` detections.
+    # Disabled if Go < 1.24.
     # Default: true
-    os-mkdir-temp: false
-    
-    # Enable/disable `os.Setenv()` detections.
-    # Default: false
-    os-setenv: true
-    
-    # Enable/disable `os.TempDir()` detections.
-    # Default: false
-    os-temp-dir: true
+    context-background: false
+
+    # Enable/disable `context.TODO()` detections.
+    # Disabled if Go < 1.24.
+    # Default: true
+    context-todo: false
 ```
 
 ### As a CLI
@@ -56,9 +60,11 @@ Flags:
   -osmkdirtemp
         Enable/disable os.MkdirTemp() detections (default true)
   -ossetenv
-        Enable/disable os.Setenv() detections (default true)
+        Enable/disable os.Setenv() detections (default false)
   -ostempdir
-        Enable/disable os.TempDir() detections (default true)
+        Enable/disable os.TempDir() detections (default false)
+  -oscreatetemp
+        Enable/disable os.CreateTemp("", ...) detections (default true)
 ...
 ```
 
@@ -96,6 +102,24 @@ It can be replaced by:
 ```go
 func TestExample(t *testing.T) {
 	t.TempDir()
+    // ...
+}
+```
+
+### `os.CreateTemp`
+
+```go
+func TestExample(t *testing.T) {
+	os.CreateTemp("", "x")
+	// ...
+}
+```
+
+It can be replaced by:
+
+```go
+func TestExample(t *testing.T) {
+    os.CreateTemp(t.TempDir(), "x")
     // ...
 }
 ```

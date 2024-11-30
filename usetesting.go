@@ -4,7 +4,6 @@ package usetesting
 import (
 	"go/ast"
 	"go/build"
-	"go/token"
 	"os"
 	"slices"
 	"strconv"
@@ -18,6 +17,7 @@ import (
 const (
 	chdirName      = "Chdir"
 	mkdirTempName  = "MkdirTemp"
+	createTempName = "CreateTemp"
 	setenvName     = "Setenv"
 	tempDirName    = "TempDir"
 	backgroundName = "Background"
@@ -39,6 +39,7 @@ type analyzer struct {
 	osMkdirTemp       bool
 	osTempDir         bool
 	osSetenv          bool
+	osCreateTemp      bool
 
 	fieldNames []string
 
@@ -58,6 +59,7 @@ func NewAnalyzer() *analysis.Analyzer {
 			setenvName,
 			backgroundName,
 			todoName,
+			createTempName,
 		},
 		skipGoVersionDetection: skip,
 	}
@@ -75,6 +77,7 @@ func NewAnalyzer() *analysis.Analyzer {
 	a.Flags.BoolVar(&l.osMkdirTemp, "osmkdirtemp", true, "Enable/disable os.MkdirTemp() detections")
 	a.Flags.BoolVar(&l.osSetenv, "ossetenv", false, "Enable/disable os.Setenv() detections")
 	a.Flags.BoolVar(&l.osTempDir, "ostempdir", false, "Enable/disable os.TempDir() detections")
+	a.Flags.BoolVar(&l.osCreateTemp, "oscreatetemp", true, `Enable/disable os.CreateTemp("", ...) detections`)
 
 	return a
 }
@@ -104,6 +107,34 @@ func (a *analyzer) run(pass *analysis.Pass) (any, error) {
 	})
 
 	return nil, nil
+}
+
+func (a *analyzer) isGoSupported(pass *analysis.Pass) bool {
+	if a.skipGoVersionDetection {
+		return true
+	}
+
+	// Prior to go1.22, versions.FileVersion returns only the toolchain version,
+	// which is of no use to us,
+	// so disable this analyzer on earlier versions.
+	if !slices.Contains(build.Default.ReleaseTags, "go1.22") {
+		return false
+	}
+
+	pkgVersion := pass.Pkg.GoVersion()
+	if pkgVersion == "" {
+		// Empty means Go devel.
+		return true
+	}
+
+	vParts := strings.Split(strings.TrimPrefix(pkgVersion, "go"), ".")
+
+	v, err := strconv.Atoi(strings.Join(vParts[:2], ""))
+	if err != nil {
+		v = 116
+	}
+
+	return v >= 124
 }
 
 func (a *analyzer) checkFunc(pass *analysis.Pass, ft *ast.FuncType, block *ast.BlockStmt, fnName string) {
@@ -209,6 +240,10 @@ func (a *analyzer) checkExpr(pass *analysis.Pass, fnName string, exp ast.Expr) {
 		a.checkExpr(pass, fnName, expr.X)
 
 	case *ast.CallExpr:
+		if a.reportCallExpr(pass, expr, fnName) {
+			return
+		}
+
 		for _, arg := range expr.Args {
 			a.checkExpr(pass, fnName, arg)
 		}
@@ -224,70 +259,6 @@ func (a *analyzer) checkExpr(pass *analysis.Pass, fnName string, exp ast.Expr) {
 	default:
 		// skip
 	}
-}
-
-func (a *analyzer) reportSelector(pass *analysis.Pass, sel *ast.SelectorExpr, fnName string) {
-	expr, ok := sel.X.(*ast.Ident)
-	if !ok {
-		return
-	}
-
-	if !sel.Sel.IsExported() {
-		return
-	}
-
-	a.report(pass, sel.Pos(), expr.Name, sel.Sel.Name, fnName)
-}
-
-func (a *analyzer) reportIdent(pass *analysis.Pass, expr *ast.Ident, fnName string) {
-	if !slices.Contains(a.fieldNames, expr.Name) {
-		return
-	}
-
-	if !expr.IsExported() {
-		return
-	}
-
-	o := pass.TypesInfo.ObjectOf(expr)
-
-	if o == nil || o.Pkg() == nil {
-		return
-	}
-
-	pkgName := o.Pkg().Name()
-
-	a.report(pass, expr.Pos(), pkgName, expr.Name, fnName)
-}
-
-//nolint:gocyclo // The complexity is expected by the cases to check.
-func (a *analyzer) report(pass *analysis.Pass, pos token.Pos, origPkgName, origName, fnName string) {
-	switch {
-	case a.osMkdirTemp && origPkgName == osPkgName && origName == mkdirTempName:
-		report(pass, pos, origPkgName, origName, tempDirName, fnName)
-
-	case a.osTempDir && origPkgName == osPkgName && origName == tempDirName:
-		report(pass, pos, origPkgName, origName, tempDirName, fnName)
-
-	case a.osSetenv && origPkgName == osPkgName && origName == setenvName:
-		report(pass, pos, origPkgName, origName, setenvName, fnName)
-
-	case a.geGo124 && a.osChdir && origPkgName == osPkgName && origName == chdirName:
-		report(pass, pos, origPkgName, origName, chdirName, fnName)
-
-	case a.geGo124 && a.contextBackground && origPkgName == contextPkgName && origName == backgroundName:
-		report(pass, pos, origPkgName, origName, contextName, fnName)
-
-	case a.geGo124 && a.contextTodo && origPkgName == contextPkgName && origName == todoName:
-		report(pass, pos, origPkgName, origName, contextName, fnName)
-	}
-}
-
-func report(pass *analysis.Pass, pos token.Pos, origPkgName, origName, expectName, fnName string) {
-	pass.Reportf(
-		pos,
-		"%s.%s() could be replaced by <t/b/tb>.%s() in %s",
-		origPkgName, origName, expectName, fnName,
-	)
 }
 
 func checkStmts[T ast.Stmt](a *analyzer, pass *analysis.Pass, fnName string, stmts []T) {
@@ -322,32 +293,4 @@ func checkSelectorName(exp *ast.SelectorExpr, pkgName string, selectorNames ...s
 	}
 
 	return false
-}
-
-func (a *analyzer) isGoSupported(pass *analysis.Pass) bool {
-	if a.skipGoVersionDetection {
-		return true
-	}
-
-	// Prior to go1.22, versions.FileVersion returns only the toolchain version,
-	// which is of no use to us,
-	// so disable this analyzer on earlier versions.
-	if !slices.Contains(build.Default.ReleaseTags, "go1.22") {
-		return false
-	}
-
-	pkgVersion := pass.Pkg.GoVersion()
-	if pkgVersion == "" {
-		// Empty means Go devel.
-		return true
-	}
-
-	vParts := strings.Split(strings.TrimPrefix(pkgVersion, "go"), ".")
-
-	v, err := strconv.Atoi(strings.Join(vParts[:2], ""))
-	if err != nil {
-		v = 116
-	}
-
-	return v >= 124
 }
