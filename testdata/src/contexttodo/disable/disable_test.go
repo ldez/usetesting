@@ -9,6 +9,14 @@ import (
 	"testing"
 )
 
+func Test_NoName(_ *testing.T) {
+	context.TODO()
+}
+
+func Benchmark_ExprStmt(b *testing.B) {
+	context.TODO()
+}
+
 func Test_ExprStmt(t *testing.T) {
 	context.TODO()
 }

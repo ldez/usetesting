@@ -1,51 +1,60 @@
 package disable
 
 import (
-	"context"
 	"errors"
 	"fmt"
+	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 )
 
+func Test_NoName(_ *testing.T) {
+	os.Chdir("")
+}
+
+func Benchmark_ExprStmt(b *testing.B) {
+	os.Chdir("")
+}
+
 func Test_ExprStmt(t *testing.T) {
-	context.Background()
+	os.Chdir("")
 }
 
 func Test_AssignStmt(t *testing.T) {
-	ctx := context.Background()
-	_ = ctx
+	err := os.Chdir("")
+	_ = err
 }
 
 func Test_AssignStmt_ignore_return(t *testing.T) {
-	_ = context.Background()
+	_ = os.Chdir("")
 }
 
 func Test_IfStmt(t *testing.T) {
-	if ctx := context.Background(); ctx != nil {
+	if err := os.Chdir(""); err != nil {
 		// foo
 	}
 }
 
 func TestName_RangeStmt(t *testing.T) {
-	for range 5 {
-		context.Background()
+	for i := range 5 {
+		os.Chdir(strconv.Itoa(i))
 	}
 }
 
 func Test_ForStmt(t *testing.T) {
 	for i := 0; i < 3; i++ {
-		context.Background()
+		os.Chdir(strconv.Itoa(i))
 	}
 }
 
 func Test_DeferStmt(t *testing.T) {
-	defer context.Background()
+	defer os.Chdir("")
 }
 
 func Test_CallExpr(t *testing.T) {
-	t.Log(context.Background())
+	t.Log(os.Chdir(""))
 }
 
 func Test_CallExpr_deep(t *testing.T) {
@@ -54,7 +63,7 @@ func Test_CallExpr_deep(t *testing.T) {
 			strings.TrimSuffix(
 				strings.TrimPrefix(
 					fmt.Sprintf("%s",
-						context.Background(),
+						os.Chdir(""),
 					),
 					"a",
 				),
@@ -67,12 +76,12 @@ func Test_CallExpr_deep(t *testing.T) {
 
 func Test_GoStmt(t *testing.T) {
 	go func() {
-		context.Background()
+		os.Chdir("")
 	}()
 }
 
 func Test_GoStmt_arg(t *testing.T) {
-	go func(ctx context.Context) {}(context.Background())
+	go func(err error) {}(os.Chdir(""))
 }
 
 func Test_CallExpr_recursive(t *testing.T) {
@@ -80,7 +89,7 @@ func Test_CallExpr_recursive(t *testing.T) {
 }
 
 func foo(t *testing.T, s string) error {
-	return foo(t, fmt.Sprintf("%s %s", s, context.Background()))
+	return foo(t, fmt.Sprintf("%s", os.Chdir(s)))
 }
 
 func Test_FuncLit_ExprStmt(t *testing.T) {
@@ -92,7 +101,7 @@ func Test_FuncLit_ExprStmt(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
-			context.Background()
+			os.Chdir("")
 		})
 	}
 }
@@ -100,26 +109,26 @@ func Test_FuncLit_ExprStmt(t *testing.T) {
 func Test_SwitchStmt(t *testing.T) {
 	switch {
 	case runtime.GOOS == "linux":
-		context.Background()
+		os.Chdir("")
 	}
 }
 
 func Test_SwitchStmt_case(t *testing.T) {
 	switch {
-	case context.Background() == nil:
+	case os.Chdir("") == nil:
 		// noop
 	}
 }
 
 func Test_DeclStmt(t *testing.T) {
-	var ctx context.Context = context.Background()
-	_ = ctx
+	var err error = os.Chdir("")
+	_ = err
 }
 
 func Test_DeclStmt_tuple(t *testing.T) {
-	var err, ctx any = errors.New(""), context.Background()
+	var err, r error = errors.New(""), os.Chdir("")
 	_ = err
-	_ = ctx
+	_ = r
 }
 
 func Test_SelectStmt(t *testing.T) {
@@ -129,7 +138,7 @@ func Test_SelectStmt(t *testing.T) {
 		for {
 			select {
 			case <-doneCh:
-				context.Background()
+				os.Chdir("")
 			}
 		}
 	}()
@@ -137,7 +146,7 @@ func Test_SelectStmt(t *testing.T) {
 
 func Test_DeferStmt_wrap(t *testing.T) {
 	defer func() {
-		context.Background()
+		os.Chdir("")
 	}()
 }
 
@@ -149,7 +158,7 @@ func Test_SelectStmt_anon_func(t *testing.T) {
 			select {
 			case <-doneCh:
 				func() {
-					context.Background()
+					os.Chdir("")
 				}()
 			}
 		}
@@ -158,27 +167,27 @@ func Test_SelectStmt_anon_func(t *testing.T) {
 
 func Test_BlockStmt(t *testing.T) {
 	{
-		context.Background()
+		os.Chdir("")
 	}
 }
 
 func Test_TypeSwitchStmt(t *testing.T) {
-	context.Background()
+	os.Chdir("")
 }
 
 func Test_TypeSwitchStmt_AssignStmt(t *testing.T) {
-	switch v := context.Background().(type) {
+	switch v := os.Chdir("").(type) {
 	case error:
 		_ = v
 	}
 }
 
 func Test_SwitchStmt_Tag(t *testing.T) {
-	switch context.Background() {
-	case nil:
+	switch os.Chdir("") {
+	case errors.New(""):
 	}
 }
 
 func foobar() {
-	context.Background()
+	os.Chdir("")
 }

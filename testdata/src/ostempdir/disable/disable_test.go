@@ -9,6 +9,14 @@ import (
 	"testing"
 )
 
+func Test_NoName(_ *testing.T) {
+	os.TempDir()
+}
+
+func Benchmark_ExprStmt(b *testing.B) {
+	os.TempDir()
+}
+
 func Test_ExprStmt(t *testing.T) {
 	os.TempDir()
 }

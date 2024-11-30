@@ -11,7 +11,7 @@ import (
 // because [os.CreateTemp] takes 2 args.
 const nbArgCreateTemp = 2
 
-func (a *analyzer) reportCallExpr(pass *analysis.Pass, ce *ast.CallExpr, fnName string) bool {
+func (a *analyzer) reportCallExpr(pass *analysis.Pass, ce *ast.CallExpr, fnInfo FuncInfo) bool {
 	if !a.osCreateTemp {
 		return false
 	}
@@ -34,8 +34,8 @@ func (a *analyzer) reportCallExpr(pass *analysis.Pass, ce *ast.CallExpr, fnName 
 		if expr.Name == osPkgName {
 			if isFirstArgEmptyString(ce) {
 				pass.Reportf(ce.Pos(),
-					`%s.%s("", ...) could be replaced by %[1]s.%[2]s(<t/b/tb>.%s(), ...) in %s`,
-					osPkgName, createTempName, tempDirName, fnName,
+					`%s.%s("", ...) could be replaced by %[1]s.%[2]s(%s.%s(), ...) in %s`,
+					osPkgName, createTempName, fnInfo.ArgName, tempDirName, fnInfo.Name,
 				)
 
 				return true
@@ -52,8 +52,8 @@ func (a *analyzer) reportCallExpr(pass *analysis.Pass, ce *ast.CallExpr, fnName 
 		if pkgName == osPkgName {
 			if isFirstArgEmptyString(ce) {
 				pass.Reportf(ce.Pos(),
-					`%s.%s("", ...) could be replaced by %[1]s.%[2]s(<t/b/tb>.%s(), ...) in %s`,
-					osPkgName, createTempName, tempDirName, fnName,
+					`%s.%s("", ...) could be replaced by %[1]s.%[2]s(%s.%s(), ...) in %s`,
+					osPkgName, createTempName, fnInfo.ArgName, tempDirName, fnInfo.Name,
 				)
 
 				return true
@@ -64,7 +64,7 @@ func (a *analyzer) reportCallExpr(pass *analysis.Pass, ce *ast.CallExpr, fnName 
 	return false
 }
 
-func (a *analyzer) reportSelector(pass *analysis.Pass, sel *ast.SelectorExpr, fnName string) {
+func (a *analyzer) reportSelector(pass *analysis.Pass, sel *ast.SelectorExpr, fnInfo FuncInfo) {
 	expr, ok := sel.X.(*ast.Ident)
 	if !ok {
 		return
@@ -74,10 +74,10 @@ func (a *analyzer) reportSelector(pass *analysis.Pass, sel *ast.SelectorExpr, fn
 		return
 	}
 
-	a.report(pass, sel.Pos(), expr.Name, sel.Sel.Name, fnName)
+	a.report(pass, sel.Pos(), expr.Name, sel.Sel.Name, fnInfo)
 }
 
-func (a *analyzer) reportIdent(pass *analysis.Pass, expr *ast.Ident, fnName string) {
+func (a *analyzer) reportIdent(pass *analysis.Pass, expr *ast.Ident, fnInfo FuncInfo) {
 	if !slices.Contains(a.fieldNames, expr.Name) {
 		return
 	}
@@ -88,37 +88,37 @@ func (a *analyzer) reportIdent(pass *analysis.Pass, expr *ast.Ident, fnName stri
 
 	pkgName := getPkgNameFromType(pass, expr)
 
-	a.report(pass, expr.Pos(), pkgName, expr.Name, fnName)
+	a.report(pass, expr.Pos(), pkgName, expr.Name, fnInfo)
 }
 
 //nolint:gocyclo // The complexity is expected by the cases to check.
-func (a *analyzer) report(pass *analysis.Pass, pos token.Pos, origPkgName, origName, fnName string) {
+func (a *analyzer) report(pass *analysis.Pass, pos token.Pos, origPkgName, origName string, fnInfo FuncInfo) {
 	switch {
 	case a.osMkdirTemp && origPkgName == osPkgName && origName == mkdirTempName:
-		report(pass, pos, origPkgName, origName, tempDirName, fnName)
+		report(pass, pos, origPkgName, origName, tempDirName, fnInfo)
 
 	case a.osTempDir && origPkgName == osPkgName && origName == tempDirName:
-		report(pass, pos, origPkgName, origName, tempDirName, fnName)
+		report(pass, pos, origPkgName, origName, tempDirName, fnInfo)
 
 	case a.osSetenv && origPkgName == osPkgName && origName == setenvName:
-		report(pass, pos, origPkgName, origName, setenvName, fnName)
+		report(pass, pos, origPkgName, origName, setenvName, fnInfo)
 
 	case a.geGo124 && a.osChdir && origPkgName == osPkgName && origName == chdirName:
-		report(pass, pos, origPkgName, origName, chdirName, fnName)
+		report(pass, pos, origPkgName, origName, chdirName, fnInfo)
 
 	case a.geGo124 && a.contextBackground && origPkgName == contextPkgName && origName == backgroundName:
-		report(pass, pos, origPkgName, origName, contextName, fnName)
+		report(pass, pos, origPkgName, origName, contextName, fnInfo)
 
 	case a.geGo124 && a.contextTodo && origPkgName == contextPkgName && origName == todoName:
-		report(pass, pos, origPkgName, origName, contextName, fnName)
+		report(pass, pos, origPkgName, origName, contextName, fnInfo)
 	}
 }
 
-func report(pass *analysis.Pass, pos token.Pos, origPkgName, origName, expectName, fnName string) {
+func report(pass *analysis.Pass, pos token.Pos, origPkgName, origName, expectName string, fnInfo FuncInfo) {
 	pass.Reportf(
 		pos,
-		"%s.%s() could be replaced by <t/b/tb>.%s() in %s",
-		origPkgName, origName, expectName, fnName,
+		"%s.%s() could be replaced by %s.%s() in %s",
+		origPkgName, origName, fnInfo.ArgName, expectName, fnInfo.Name,
 	)
 }
 

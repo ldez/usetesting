@@ -31,6 +31,12 @@ const (
 	testingPkgName = "testing"
 )
 
+// FuncInfo information about the test function.
+type FuncInfo struct {
+	Name    string
+	ArgName string
+}
+
 // analyzer is the UseTesting linter.
 type analyzer struct {
 	contextBackground bool
@@ -142,40 +148,46 @@ func (a *analyzer) checkFunc(pass *analysis.Pass, ft *ast.FuncType, block *ast.B
 		return
 	}
 
-	if !isTestFunction(ft.Params.List[0].Type, testingPkgName) {
+	argName, ok := isTestFunction(ft.Params.List[0], testingPkgName)
+	if !ok {
 		return
 	}
 
-	checkStmts(a, pass, fnName, block.List)
+	fnInfo := FuncInfo{
+		Name:    fnName,
+		ArgName: argName,
+	}
+
+	checkStmts(a, pass, fnInfo, block.List)
 }
 
 //nolint:funlen // The complexity is expected by the number of [ast.Stmt] variants.
-func (a *analyzer) checkStmt(pass *analysis.Pass, fnName string, stmt ast.Stmt) {
+func (a *analyzer) checkStmt(pass *analysis.Pass, fnInfo FuncInfo, stmt ast.Stmt) {
 	if stmt == nil {
 		return
 	}
 
 	switch stmt := stmt.(type) {
 	case *ast.ExprStmt:
-		a.checkExpr(pass, fnName, stmt.X)
+		a.checkExpr(pass, fnInfo, stmt.X)
 
 	case *ast.IfStmt:
-		a.checkStmt(pass, fnName, stmt.Init)
+		a.checkStmt(pass, fnInfo, stmt.Init)
 
 	case *ast.AssignStmt:
-		a.checkExpr(pass, fnName, stmt.Rhs[0])
+		a.checkExpr(pass, fnInfo, stmt.Rhs[0])
 
 	case *ast.ForStmt:
-		a.checkStmt(pass, fnName, stmt.Body)
+		a.checkStmt(pass, fnInfo, stmt.Body)
 
 	case *ast.DeferStmt:
-		a.checkExpr(pass, fnName, stmt.Call)
+		a.checkExpr(pass, fnInfo, stmt.Call)
 
 	case *ast.RangeStmt:
-		a.checkStmt(pass, fnName, stmt.Body)
+		a.checkStmt(pass, fnInfo, stmt.Body)
 
 	case *ast.ReturnStmt:
-		checkExprs(a, pass, fnName, stmt.Results)
+		checkExprs(a, pass, fnInfo, stmt.Results)
 
 	case *ast.DeclStmt:
 		genDecl, ok := stmt.Decl.(*ast.GenDecl)
@@ -188,31 +200,31 @@ func (a *analyzer) checkStmt(pass *analysis.Pass, fnName string, stmt ast.Stmt) 
 			return
 		}
 
-		checkExprs(a, pass, fnName, valSpec.Values)
+		checkExprs(a, pass, fnInfo, valSpec.Values)
 
 	case *ast.GoStmt:
-		a.checkExpr(pass, fnName, stmt.Call)
+		a.checkExpr(pass, fnInfo, stmt.Call)
 
 	case *ast.CaseClause:
-		checkExprs(a, pass, fnName, stmt.List)
-		checkStmts(a, pass, fnName, stmt.Body)
+		checkExprs(a, pass, fnInfo, stmt.List)
+		checkStmts(a, pass, fnInfo, stmt.Body)
 
 	case *ast.SwitchStmt:
-		a.checkExpr(pass, fnName, stmt.Tag)
-		a.checkStmt(pass, fnName, stmt.Body)
+		a.checkExpr(pass, fnInfo, stmt.Tag)
+		a.checkStmt(pass, fnInfo, stmt.Body)
 
 	case *ast.TypeSwitchStmt:
-		a.checkStmt(pass, fnName, stmt.Assign)
-		a.checkStmt(pass, fnName, stmt.Body)
+		a.checkStmt(pass, fnInfo, stmt.Assign)
+		a.checkStmt(pass, fnInfo, stmt.Body)
 
 	case *ast.CommClause:
-		checkStmts(a, pass, fnName, stmt.Body)
+		checkStmts(a, pass, fnInfo, stmt.Body)
 
 	case *ast.SelectStmt:
-		a.checkStmt(pass, fnName, stmt.Body)
+		a.checkStmt(pass, fnInfo, stmt.Body)
 
 	case *ast.BlockStmt:
-		checkStmts(a, pass, fnName, stmt.List)
+		checkStmts(a, pass, fnInfo, stmt.List)
 
 	case *ast.BranchStmt, *ast.SendStmt, *ast.IncDecStmt, *ast.LabeledStmt:
 		// skip
@@ -222,36 +234,36 @@ func (a *analyzer) checkStmt(pass *analysis.Pass, fnName string, stmt ast.Stmt) 
 	}
 }
 
-func (a *analyzer) checkExpr(pass *analysis.Pass, fnName string, exp ast.Expr) {
+func (a *analyzer) checkExpr(pass *analysis.Pass, fnInfo FuncInfo, exp ast.Expr) {
 	switch expr := exp.(type) {
 	case *ast.BinaryExpr:
-		a.checkExpr(pass, fnName, expr.X)
-		a.checkExpr(pass, fnName, expr.Y)
+		a.checkExpr(pass, fnInfo, expr.X)
+		a.checkExpr(pass, fnInfo, expr.Y)
 
 	case *ast.SelectorExpr:
-		a.reportSelector(pass, expr, fnName)
+		a.reportSelector(pass, expr, fnInfo)
 
 	case *ast.FuncLit:
 		for _, stmt := range expr.Body.List {
-			a.checkStmt(pass, fnName, stmt)
+			a.checkStmt(pass, fnInfo, stmt)
 		}
 
 	case *ast.TypeAssertExpr:
-		a.checkExpr(pass, fnName, expr.X)
+		a.checkExpr(pass, fnInfo, expr.X)
 
 	case *ast.CallExpr:
-		if a.reportCallExpr(pass, expr, fnName) {
+		if a.reportCallExpr(pass, expr, fnInfo) {
 			return
 		}
 
 		for _, arg := range expr.Args {
-			a.checkExpr(pass, fnName, arg)
+			a.checkExpr(pass, fnInfo, arg)
 		}
 
-		a.checkExpr(pass, fnName, expr.Fun)
+		a.checkExpr(pass, fnInfo, expr.Fun)
 
 	case *ast.Ident:
-		a.reportIdent(pass, expr, fnName)
+		a.reportIdent(pass, expr, fnInfo)
 
 	case *ast.BasicLit:
 		// skip
@@ -261,36 +273,48 @@ func (a *analyzer) checkExpr(pass *analysis.Pass, fnName string, exp ast.Expr) {
 	}
 }
 
-func checkStmts[T ast.Stmt](a *analyzer, pass *analysis.Pass, fnName string, stmts []T) {
+func checkStmts[T ast.Stmt](a *analyzer, pass *analysis.Pass, fnInfo FuncInfo, stmts []T) {
 	for _, stmt := range stmts {
-		a.checkStmt(pass, fnName, stmt)
+		a.checkStmt(pass, fnInfo, stmt)
 	}
 }
 
-func checkExprs(a *analyzer, pass *analysis.Pass, fnName string, exprs []ast.Expr) {
+func checkExprs(a *analyzer, pass *analysis.Pass, fnInfo FuncInfo, exprs []ast.Expr) {
 	for _, expr := range exprs {
-		a.checkExpr(pass, fnName, expr)
+		a.checkExpr(pass, fnInfo, expr)
 	}
 }
 
-func isTestFunction(argType ast.Expr, pkgName string) bool {
-	switch ft := argType.(type) {
+func isTestFunction(arg *ast.Field, pkgName string) (string, bool) {
+	switch at := arg.Type.(type) {
 	case *ast.StarExpr:
-		if se, ok := ft.X.(*ast.SelectorExpr); ok {
-			return checkSelectorName(se, pkgName, "T", "B", "F")
+		if se, ok := at.X.(*ast.SelectorExpr); ok {
+			argName := getTestArgName(arg, "<t/b/f>")
+
+			return argName, checkSelectorName(se, pkgName, "T", "B", "F")
 		}
 
 	case *ast.SelectorExpr:
-		return checkSelectorName(ft, pkgName, "TB")
+		argName := getTestArgName(arg, "tb")
+
+		return argName, checkSelectorName(at, pkgName, "TB")
+	}
+
+	return "", false
+}
+
+func checkSelectorName(se *ast.SelectorExpr, pkgName string, selectorNames ...string) bool {
+	if ident, ok := se.X.(*ast.Ident); ok {
+		return pkgName == ident.Name && slices.Contains(selectorNames, se.Sel.Name)
 	}
 
 	return false
 }
 
-func checkSelectorName(exp *ast.SelectorExpr, pkgName string, selectorNames ...string) bool {
-	if expr, ok := exp.X.(*ast.Ident); ok {
-		return pkgName == expr.Name && slices.Contains(selectorNames, exp.Sel.Name)
+func getTestArgName(arg *ast.Field, defaultName string) string {
+	if len(arg.Names) > 0 && arg.Names[0].Name != "_" {
+		return arg.Names[0].Name
 	}
 
-	return false
+	return defaultName
 }

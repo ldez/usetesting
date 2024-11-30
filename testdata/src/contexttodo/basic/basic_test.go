@@ -9,43 +9,51 @@ import (
 	"testing"
 )
 
+func Test_NoName(_ *testing.T) {
+	context.TODO() // want `context\.TODO\(\) could be replaced by <t/b/f>\.Context\(\) in .+`
+}
+
+func Benchmark_ExprStmt(b *testing.B) {
+	context.TODO() // want `context\.TODO\(\) could be replaced by b\.Context\(\) in .+`
+}
+
 func Test_ExprStmt(t *testing.T) {
-	context.TODO() // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+	context.TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 }
 
 func Test_AssignStmt(t *testing.T) {
-	ctx := context.TODO() // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+	ctx := context.TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 	_ = ctx
 }
 
 func Test_AssignStmt_ignore_return(t *testing.T) {
-	_ = context.TODO() // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+	_ = context.TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 }
 
 func Test_IfStmt(t *testing.T) {
-	if ctx := context.TODO(); ctx != nil { // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+	if ctx := context.TODO(); ctx != nil { // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 		// foo
 	}
 }
 
 func TestName_RangeStmt(t *testing.T) {
 	for range 5 {
-		context.TODO() // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+		context.TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 	}
 }
 
 func Test_ForStmt(t *testing.T) {
 	for i := 0; i < 3; i++ {
-		context.TODO() // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+		context.TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 	}
 }
 
 func Test_DeferStmt(t *testing.T) {
-	defer context.TODO() // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+	defer context.TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 }
 
 func Test_CallExpr(t *testing.T) {
-	t.Log(context.TODO()) // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+	t.Log(context.TODO()) // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 }
 
 func Test_CallExpr_deep(t *testing.T) {
@@ -54,7 +62,7 @@ func Test_CallExpr_deep(t *testing.T) {
 			strings.TrimSuffix(
 				strings.TrimPrefix(
 					fmt.Sprintf("%s",
-						context.TODO(), // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+						context.TODO(), // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 					),
 					"a",
 				),
@@ -67,12 +75,12 @@ func Test_CallExpr_deep(t *testing.T) {
 
 func Test_GoStmt(t *testing.T) {
 	go func() {
-		context.TODO() // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+		context.TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 	}()
 }
 
 func Test_GoStmt_arg(t *testing.T) {
-	go func(ctx context.Context) {}(context.TODO()) // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+	go func(ctx context.Context) {}(context.TODO()) // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 }
 
 func Test_CallExpr_recursive(t *testing.T) {
@@ -80,7 +88,7 @@ func Test_CallExpr_recursive(t *testing.T) {
 }
 
 func foo(t *testing.T, s string) error {
-	return foo(t, fmt.Sprintf("%s %s", s, context.TODO())) // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+	return foo(t, fmt.Sprintf("%s %s", s, context.TODO())) // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 }
 
 func Test_FuncLit_ExprStmt(t *testing.T) {
@@ -92,7 +100,7 @@ func Test_FuncLit_ExprStmt(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
-			context.TODO() // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+` `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+			context.TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+` `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 		})
 	}
 }
@@ -100,24 +108,24 @@ func Test_FuncLit_ExprStmt(t *testing.T) {
 func Test_SwitchStmt(t *testing.T) {
 	switch {
 	case runtime.GOOS == "linux":
-		context.TODO() // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+		context.TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 	}
 }
 
 func Test_SwitchStmt_case(t *testing.T) {
 	switch {
-	case context.TODO() == nil: // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+	case context.TODO() == nil: // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 		// noop
 	}
 }
 
 func Test_DeclStmt(t *testing.T) {
-	var ctx context.Context = context.TODO() // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+	var ctx context.Context = context.TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 	_ = ctx
 }
 
 func Test_DeclStmt_tuple(t *testing.T) {
-	var err, ctx any = errors.New(""), context.TODO() // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+	var err, ctx any = errors.New(""), context.TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 	_ = err
 	_ = ctx
 }
@@ -129,7 +137,7 @@ func Test_SelectStmt(t *testing.T) {
 		for {
 			select {
 			case <-doneCh:
-				context.TODO() // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+				context.TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 			}
 		}
 	}()
@@ -137,7 +145,7 @@ func Test_SelectStmt(t *testing.T) {
 
 func Test_DeferStmt_wrap(t *testing.T) {
 	defer func() {
-		context.TODO() // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+		context.TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 	}()
 }
 
@@ -149,7 +157,7 @@ func Test_SelectStmt_anon_func(t *testing.T) {
 			select {
 			case <-doneCh:
 				func() {
-					context.TODO() // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+					context.TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 				}()
 			}
 		}
@@ -158,23 +166,23 @@ func Test_SelectStmt_anon_func(t *testing.T) {
 
 func Test_BlockStmt(t *testing.T) {
 	{
-		context.TODO() // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+		context.TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 	}
 }
 
 func Test_TypeSwitchStmt(t *testing.T) {
-	context.TODO() // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+	context.TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 }
 
 func Test_TypeSwitchStmt_AssignStmt(t *testing.T) {
-	switch v := context.TODO().(type) { // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+	switch v := context.TODO().(type) { // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 	case error:
 		_ = v
 	}
 }
 
 func Test_SwitchStmt_Tag(t *testing.T) {
-	switch context.TODO() { // want `context\.TODO\(\) could be replaced by <t/b/tb>\.Context\(\) in .+`
+	switch context.TODO() { // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 	case nil:
 	}
 }

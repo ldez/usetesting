@@ -9,43 +9,51 @@ import (
 	"testing"
 )
 
+func Test_NoName(_ *testing.T) {
+	TempDir() // want `os\.TempDir\(\) could be replaced by <t/b/f>\.TempDir\(\) in .+`
+}
+
+func Benchmark_ExprStmt(b *testing.B) {
+	TempDir() // want `os\.TempDir\(\) could be replaced by b\.TempDir\(\) in .+`
+}
+
 func Test_ExprStmt(t *testing.T) {
-	TempDir() // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+	TempDir() // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 }
 
 func Test_AssignStmt(t *testing.T) {
-	v := TempDir() // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+	v := TempDir() // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 	_ = v
 }
 
 func Test_AssignStmt_ignore_return(t *testing.T) {
-	_ = TempDir() // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+	_ = TempDir() // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 }
 
 func Test_IfStmt(t *testing.T) {
-	if v := TempDir(); v != "" { // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+	if v := TempDir(); v != "" { // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 		// foo
 	}
 }
 
 func TestName_RangeStmt(t *testing.T) {
 	for range 5 {
-		TempDir() // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+		TempDir() // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 	}
 }
 
 func Test_ForStmt(t *testing.T) {
 	for i := 0; i < 3; i++ {
-		TempDir() // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+		TempDir() // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 	}
 }
 
 func Test_DeferStmt(t *testing.T) {
-	defer TempDir() // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+	defer TempDir() // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 }
 
 func Test_CallExpr(t *testing.T) {
-	t.Log(TempDir()) // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+	t.Log(TempDir()) // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 }
 
 func Test_CallExpr_deep(t *testing.T) {
@@ -54,7 +62,7 @@ func Test_CallExpr_deep(t *testing.T) {
 			strings.TrimSuffix(
 				strings.TrimPrefix(
 					fmt.Sprintf("%s",
-						TempDir(), // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+						TempDir(), // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 					),
 					"a",
 				),
@@ -67,12 +75,12 @@ func Test_CallExpr_deep(t *testing.T) {
 
 func Test_GoStmt(t *testing.T) {
 	go func() {
-		TempDir() // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+		TempDir() // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 	}()
 }
 
 func Test_GoStmt_arg(t *testing.T) {
-	go func(v string) {}(TempDir()) // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+	go func(v string) {}(TempDir()) // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 }
 
 func Test_CallExpr_recursive(t *testing.T) {
@@ -80,7 +88,7 @@ func Test_CallExpr_recursive(t *testing.T) {
 }
 
 func foo(t *testing.T, s string) error {
-	return foo(t, fmt.Sprintf("%s %s", s, TempDir())) // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+	return foo(t, fmt.Sprintf("%s %s", s, TempDir())) // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 }
 
 func Test_FuncLit_ExprStmt(t *testing.T) {
@@ -92,7 +100,7 @@ func Test_FuncLit_ExprStmt(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
-			TempDir() // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+` `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+			TempDir() // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+` `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 		})
 	}
 }
@@ -100,24 +108,24 @@ func Test_FuncLit_ExprStmt(t *testing.T) {
 func Test_SwitchStmt(t *testing.T) {
 	switch {
 	case runtime.GOOS == "linux":
-		TempDir() // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+		TempDir() // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 	}
 }
 
 func Test_SwitchStmt_case(t *testing.T) {
 	switch {
-	case TempDir() == "": // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+	case TempDir() == "": // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 		// noop
 	}
 }
 
 func Test_DeclStmt(t *testing.T) {
-	var v string = TempDir() // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+	var v string = TempDir() // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 	_ = v
 }
 
 func Test_DeclStmt_tuple(t *testing.T) {
-	var err, v any = errors.New(""), TempDir() // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+	var err, v any = errors.New(""), TempDir() // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 	_ = err
 	_ = v
 }
@@ -129,7 +137,7 @@ func Test_SelectStmt(t *testing.T) {
 		for {
 			select {
 			case <-doneCh:
-				TempDir() // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+				TempDir() // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 			}
 		}
 	}()
@@ -137,7 +145,7 @@ func Test_SelectStmt(t *testing.T) {
 
 func Test_DeferStmt_wrap(t *testing.T) {
 	defer func() {
-		TempDir() // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+		TempDir() // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 	}()
 }
 
@@ -149,7 +157,7 @@ func Test_SelectStmt_anon_func(t *testing.T) {
 			select {
 			case <-doneCh:
 				func() {
-					TempDir() // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+					TempDir() // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 				}()
 			}
 		}
@@ -158,16 +166,16 @@ func Test_SelectStmt_anon_func(t *testing.T) {
 
 func Test_BlockStmt(t *testing.T) {
 	{
-		TempDir() // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+		TempDir() // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 	}
 }
 
 func Test_TypeSwitchStmt(t *testing.T) {
-	TempDir() // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+	TempDir() // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 }
 
 func Test_SwitchStmt_Tag(t *testing.T) {
-	switch TempDir() { // want `os\.TempDir\(\) could be replaced by <t/b/tb>\.TempDir\(\) in .+`
+	switch TempDir() { // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 	case "":
 	}
 }
