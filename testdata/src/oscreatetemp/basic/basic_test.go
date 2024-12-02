@@ -8,7 +8,7 @@ import (
 )
 
 func Test_NoName(_ *testing.T) {
-	os.CreateTemp("", "") // want `os\.CreateTemp\("", \.\.\.\) could be replaced by os\.CreateTemp\(<t/b/f>\.TempDir\(\), \.\.\.\) in .+`
+	os.CreateTemp("", "") // want `os\.CreateTemp\("", \.\.\.\) could be replaced by os\.CreateTemp\(<t/b>\.TempDir\(\), \.\.\.\) in .+`
 }
 
 func Benchmark_ExprStmt(b *testing.B) {

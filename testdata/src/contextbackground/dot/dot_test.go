@@ -11,7 +11,7 @@ import (
 )
 
 func Test_NoName(_ *testing.T) {
-	Background() // want `context\.Background\(\) could be replaced by <t/b/f>\.Context\(\) in .+`
+	Background() // want `context\.Background\(\) could be replaced by <t/b>\.Context\(\) in .+`
 }
 
 func Benchmark_ExprStmt(b *testing.B) {

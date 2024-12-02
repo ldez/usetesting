@@ -10,7 +10,7 @@ import (
 )
 
 func FunctionNoName(_ *testing.T) {
-	context.TODO() // want `context\.TODO\(\) could be replaced by <t/b/f>\.Context\(\) in .+`
+	context.TODO() // want `context\.TODO\(\) could be replaced by <t/b>\.Context\(\) in .+`
 }
 
 func FunctionTB(tb testing.TB) {

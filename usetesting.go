@@ -289,9 +289,9 @@ func isTestFunction(arg *ast.Field, pkgName string) (string, bool) {
 	switch at := arg.Type.(type) {
 	case *ast.StarExpr:
 		if se, ok := at.X.(*ast.SelectorExpr); ok {
-			argName := getTestArgName(arg, "<t/b/f>")
+			argName := getTestArgName(arg, "<t/b>")
 
-			return argName, checkSelectorName(se, pkgName, "T", "B", "F")
+			return argName, checkSelectorName(se, pkgName, "T", "B")
 		}
 
 	case *ast.SelectorExpr:

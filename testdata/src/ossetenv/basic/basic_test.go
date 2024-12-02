@@ -10,7 +10,7 @@ import (
 )
 
 func Test_NoName(_ *testing.T) {
-	os.Setenv("", "") // want `os\.Setenv\(\) could be replaced by <t/b/f>\.Setenv\(\) in .+`
+	os.Setenv("", "") // want `os\.Setenv\(\) could be replaced by <t/b>\.Setenv\(\) in .+`
 }
 
 func Benchmark_ExprStmt(b *testing.B) {

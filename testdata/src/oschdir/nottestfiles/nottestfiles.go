@@ -11,7 +11,7 @@ import (
 )
 
 func FunctionNoName(_ *testing.T) {
-	os.Chdir("") // want `os\.Chdir\(\) could be replaced by <t/b/f>\.Chdir\(\) in .+`
+	os.Chdir("") // want `os\.Chdir\(\) could be replaced by <t/b>\.Chdir\(\) in .+`
 }
 
 func FunctionTB(tb testing.TB) {

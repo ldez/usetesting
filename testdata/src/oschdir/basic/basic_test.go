@@ -11,7 +11,7 @@ import (
 )
 
 func Test_NoName(_ *testing.T) {
-	os.Chdir("") // want `os\.Chdir\(\) could be replaced by <t/b/f>\.Chdir\(\) in .+`
+	os.Chdir("") // want `os\.Chdir\(\) could be replaced by <t/b>\.Chdir\(\) in .+`
 }
 
 func Benchmark_ExprStmt(b *testing.B) {

@@ -10,7 +10,7 @@ import (
 )
 
 func FunctionNoName(_ *testing.T) {
-	os.Setenv("", "") // want `os\.Setenv\(\) could be replaced by <t/b/f>\.Setenv\(\) in .+`
+	os.Setenv("", "") // want `os\.Setenv\(\) could be replaced by <t/b>\.Setenv\(\) in .+`
 }
 
 func FunctionTB(tb testing.TB) {

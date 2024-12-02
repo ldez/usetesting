@@ -10,7 +10,7 @@ import (
 )
 
 func Test_NoName(_ *testing.T) {
-	os.MkdirTemp("", "") // want `os\.MkdirTemp\(\) could be replaced by <t/b/f>\.TempDir\(\) in .+`
+	os.MkdirTemp("", "") // want `os\.MkdirTemp\(\) could be replaced by <t/b>\.TempDir\(\) in .+`
 }
 
 func Benchmark_ExprStmt(b *testing.B) {

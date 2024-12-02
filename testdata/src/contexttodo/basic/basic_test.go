@@ -10,7 +10,7 @@ import (
 )
 
 func Test_NoName(_ *testing.T) {
-	context.TODO() // want `context\.TODO\(\) could be replaced by <t/b/f>\.Context\(\) in .+`
+	context.TODO() // want `context\.TODO\(\) could be replaced by <t/b>\.Context\(\) in .+`
 }
 
 func Benchmark_ExprStmt(b *testing.B) {

@@ -10,7 +10,7 @@ import (
 )
 
 func FunctionNoName(_ *testing.T) {
-	os.TempDir() // want `os\.TempDir\(\) could be replaced by <t/b/f>\.TempDir\(\) in .+`
+	os.TempDir() // want `os\.TempDir\(\) could be replaced by <t/b>\.TempDir\(\) in .+`
 }
 
 func FunctionTB(tb testing.TB) {
