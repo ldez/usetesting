@@ -95,7 +95,10 @@ func (a *analyzer) run(pass *analysis.Pass) (any, error) {
 
 	a.geGo124 = a.isGoSupported(pass)
 
-	insp, _ := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	insp, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	if !ok {
+		return nil, nil
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),

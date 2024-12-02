@@ -22,7 +22,7 @@ func (a *analyzer) reportCallExpr(pass *analysis.Pass, ce *ast.CallExpr, fnInfo 
 
 	switch fun := ce.Fun.(type) {
 	case *ast.SelectorExpr:
-		if fun.Sel.Name != createTempName {
+		if fun.Sel == nil || fun.Sel.Name != createTempName {
 			return false
 		}
 
@@ -31,15 +31,13 @@ func (a *analyzer) reportCallExpr(pass *analysis.Pass, ce *ast.CallExpr, fnInfo 
 			return false
 		}
 
-		if expr.Name == osPkgName {
-			if isFirstArgEmptyString(ce) {
-				pass.Reportf(ce.Pos(),
-					`%s.%s("", ...) could be replaced by %[1]s.%[2]s(%s.%s(), ...) in %s`,
-					osPkgName, createTempName, fnInfo.ArgName, tempDirName, fnInfo.Name,
-				)
+		if expr.Name == osPkgName && isFirstArgEmptyString(ce) {
+			pass.Reportf(ce.Pos(),
+				`%s.%s("", ...) could be replaced by %[1]s.%[2]s(%s.%s(), ...) in %s`,
+				osPkgName, createTempName, fnInfo.ArgName, tempDirName, fnInfo.Name,
+			)
 
-				return true
-			}
+			return true
 		}
 
 	case *ast.Ident:
@@ -49,49 +47,47 @@ func (a *analyzer) reportCallExpr(pass *analysis.Pass, ce *ast.CallExpr, fnInfo 
 
 		pkgName := getPkgNameFromType(pass, fun)
 
-		if pkgName == osPkgName {
-			if isFirstArgEmptyString(ce) {
-				pass.Reportf(ce.Pos(),
-					`%s.%s("", ...) could be replaced by %[1]s.%[2]s(%s.%s(), ...) in %s`,
-					osPkgName, createTempName, fnInfo.ArgName, tempDirName, fnInfo.Name,
-				)
+		if pkgName == osPkgName && isFirstArgEmptyString(ce) {
+			pass.Reportf(ce.Pos(),
+				`%s.%s("", ...) could be replaced by %[1]s.%[2]s(%s.%s(), ...) in %s`,
+				osPkgName, createTempName, fnInfo.ArgName, tempDirName, fnInfo.Name,
+			)
 
-				return true
-			}
+			return true
 		}
 	}
 
 	return false
 }
 
-func (a *analyzer) reportSelector(pass *analysis.Pass, sel *ast.SelectorExpr, fnInfo *FuncInfo) {
-	expr, ok := sel.X.(*ast.Ident)
+func (a *analyzer) reportSelector(pass *analysis.Pass, se *ast.SelectorExpr, fnInfo *FuncInfo) {
+	if se.Sel == nil || !se.Sel.IsExported() {
+		return
+	}
+
+	ident, ok := se.X.(*ast.Ident)
 	if !ok {
 		return
 	}
 
-	if !sel.Sel.IsExported() {
-		return
-	}
-
-	a.report(pass, sel.Pos(), expr.Name, sel.Sel.Name, fnInfo)
+	a.report(pass, se.Pos(), ident.Name, se.Sel.Name, fnInfo)
 }
 
-func (a *analyzer) reportIdent(pass *analysis.Pass, expr *ast.Ident, fnInfo *FuncInfo) {
-	if !slices.Contains(a.fieldNames, expr.Name) {
+func (a *analyzer) reportIdent(pass *analysis.Pass, ident *ast.Ident, fnInfo *FuncInfo) {
+	if !ident.IsExported() {
 		return
 	}
 
-	if !expr.IsExported() {
+	if !slices.Contains(a.fieldNames, ident.Name) {
 		return
 	}
 
-	pkgName := getPkgNameFromType(pass, expr)
+	pkgName := getPkgNameFromType(pass, ident)
 
-	a.report(pass, expr.Pos(), pkgName, expr.Name, fnInfo)
+	a.report(pass, ident.Pos(), pkgName, ident.Name, fnInfo)
 }
 
-//nolint:gocyclo // The complexity is expected by the cases to check.
+//nolint:gocyclo // The complexity is expected by the number of cases to check.
 func (a *analyzer) report(pass *analysis.Pass, pos token.Pos, origPkgName, origName string, fnInfo *FuncInfo) {
 	switch {
 	case a.osMkdirTemp && origPkgName == osPkgName && origName == mkdirTempName:
@@ -131,8 +127,8 @@ func isFirstArgEmptyString(ce *ast.CallExpr) bool {
 	return bl.Kind == token.STRING && bl.Value == `""`
 }
 
-func getPkgNameFromType(pass *analysis.Pass, expr *ast.Ident) string {
-	o := pass.TypesInfo.ObjectOf(expr)
+func getPkgNameFromType(pass *analysis.Pass, ident *ast.Ident) string {
+	o := pass.TypesInfo.ObjectOf(ident)
 
 	if o == nil || o.Pkg() == nil {
 		return ""
