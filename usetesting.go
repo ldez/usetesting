@@ -148,21 +148,16 @@ func (a *analyzer) checkFunc(pass *analysis.Pass, ft *ast.FuncType, block *ast.B
 		return
 	}
 
-	argName, ok := isTestFunction(ft.Params.List[0], testingPkgName)
-	if !ok {
+	fnInfo := checkTestFunctionSignature(ft.Params.List[0], testingPkgName, fnName)
+	if fnInfo == nil {
 		return
-	}
-
-	fnInfo := FuncInfo{
-		Name:    fnName,
-		ArgName: argName,
 	}
 
 	checkStmts(a, pass, fnInfo, block.List)
 }
 
 //nolint:funlen // The complexity is expected by the number of [ast.Stmt] variants.
-func (a *analyzer) checkStmt(pass *analysis.Pass, fnInfo FuncInfo, stmt ast.Stmt) {
+func (a *analyzer) checkStmt(pass *analysis.Pass, fnInfo *FuncInfo, stmt ast.Stmt) {
 	if stmt == nil {
 		return
 	}
@@ -234,7 +229,7 @@ func (a *analyzer) checkStmt(pass *analysis.Pass, fnInfo FuncInfo, stmt ast.Stmt
 	}
 }
 
-func (a *analyzer) checkExpr(pass *analysis.Pass, fnInfo FuncInfo, exp ast.Expr) {
+func (a *analyzer) checkExpr(pass *analysis.Pass, fnInfo *FuncInfo, exp ast.Expr) {
 	switch expr := exp.(type) {
 	case *ast.BinaryExpr:
 		a.checkExpr(pass, fnInfo, expr.X)
@@ -268,34 +263,42 @@ func (a *analyzer) checkExpr(pass *analysis.Pass, fnInfo FuncInfo, exp ast.Expr)
 	}
 }
 
-func checkStmts[T ast.Stmt](a *analyzer, pass *analysis.Pass, fnInfo FuncInfo, stmts []T) {
+func checkStmts[T ast.Stmt](a *analyzer, pass *analysis.Pass, fnInfo *FuncInfo, stmts []T) {
 	for _, stmt := range stmts {
 		a.checkStmt(pass, fnInfo, stmt)
 	}
 }
 
-func checkExprs(a *analyzer, pass *analysis.Pass, fnInfo FuncInfo, exprs []ast.Expr) {
+func checkExprs(a *analyzer, pass *analysis.Pass, fnInfo *FuncInfo, exprs []ast.Expr) {
 	for _, expr := range exprs {
 		a.checkExpr(pass, fnInfo, expr)
 	}
 }
 
-func isTestFunction(arg *ast.Field, pkgName string) (string, bool) {
+func checkTestFunctionSignature(arg *ast.Field, pkgName, fnName string) *FuncInfo {
 	switch at := arg.Type.(type) {
 	case *ast.StarExpr:
 		if se, ok := at.X.(*ast.SelectorExpr); ok {
-			argName := getTestArgName(arg, "<t/b>")
-
-			return argName, checkSelectorName(se, pkgName, "T", "B")
+			return createFuncInfo(arg, "<t/b>", se, pkgName, fnName, "T", "B")
 		}
 
 	case *ast.SelectorExpr:
-		argName := getTestArgName(arg, "tb")
-
-		return argName, checkSelectorName(at, pkgName, "TB")
+		return createFuncInfo(arg, "tb", at, pkgName, fnName, "TB")
 	}
 
-	return "", false
+	return nil
+}
+
+func createFuncInfo(arg *ast.Field, defaultName string, se *ast.SelectorExpr, pkgName, fnName string, selectorNames ...string) *FuncInfo {
+	ok := checkSelectorName(se, pkgName, selectorNames...)
+	if !ok {
+		return nil
+	}
+
+	return &FuncInfo{
+		Name:    fnName,
+		ArgName: getTestArgName(arg, defaultName),
+	}
 }
 
 func checkSelectorName(se *ast.SelectorExpr, pkgName string, selectorNames ...string) bool {

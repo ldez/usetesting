@@ -49,6 +49,8 @@ func TestAnalyzer(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.dir, func(t *testing.T) {
+			t.Parallel()
+
 			newAnalyzer := NewAnalyzer()
 
 			for k, v := range test.options {

@@ -11,7 +11,7 @@ import (
 // because [os.CreateTemp] takes 2 args.
 const nbArgCreateTemp = 2
 
-func (a *analyzer) reportCallExpr(pass *analysis.Pass, ce *ast.CallExpr, fnInfo FuncInfo) bool {
+func (a *analyzer) reportCallExpr(pass *analysis.Pass, ce *ast.CallExpr, fnInfo *FuncInfo) bool {
 	if !a.osCreateTemp {
 		return false
 	}
@@ -64,7 +64,7 @@ func (a *analyzer) reportCallExpr(pass *analysis.Pass, ce *ast.CallExpr, fnInfo 
 	return false
 }
 
-func (a *analyzer) reportSelector(pass *analysis.Pass, sel *ast.SelectorExpr, fnInfo FuncInfo) {
+func (a *analyzer) reportSelector(pass *analysis.Pass, sel *ast.SelectorExpr, fnInfo *FuncInfo) {
 	expr, ok := sel.X.(*ast.Ident)
 	if !ok {
 		return
@@ -77,7 +77,7 @@ func (a *analyzer) reportSelector(pass *analysis.Pass, sel *ast.SelectorExpr, fn
 	a.report(pass, sel.Pos(), expr.Name, sel.Sel.Name, fnInfo)
 }
 
-func (a *analyzer) reportIdent(pass *analysis.Pass, expr *ast.Ident, fnInfo FuncInfo) {
+func (a *analyzer) reportIdent(pass *analysis.Pass, expr *ast.Ident, fnInfo *FuncInfo) {
 	if !slices.Contains(a.fieldNames, expr.Name) {
 		return
 	}
@@ -92,7 +92,7 @@ func (a *analyzer) reportIdent(pass *analysis.Pass, expr *ast.Ident, fnInfo Func
 }
 
 //nolint:gocyclo // The complexity is expected by the cases to check.
-func (a *analyzer) report(pass *analysis.Pass, pos token.Pos, origPkgName, origName string, fnInfo FuncInfo) {
+func (a *analyzer) report(pass *analysis.Pass, pos token.Pos, origPkgName, origName string, fnInfo *FuncInfo) {
 	switch {
 	case a.osMkdirTemp && origPkgName == osPkgName && origName == mkdirTempName:
 		report(pass, pos, origPkgName, origName, tempDirName, fnInfo)
@@ -114,7 +114,7 @@ func (a *analyzer) report(pass *analysis.Pass, pos token.Pos, origPkgName, origN
 	}
 }
 
-func report(pass *analysis.Pass, pos token.Pos, origPkgName, origName, expectName string, fnInfo FuncInfo) {
+func report(pass *analysis.Pass, pos token.Pos, origPkgName, origName, expectName string, fnInfo *FuncInfo) {
 	pass.Reportf(
 		pos,
 		"%s.%s() could be replaced by %s.%s() in %s",
