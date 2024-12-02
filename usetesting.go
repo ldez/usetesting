@@ -244,9 +244,7 @@ func (a *analyzer) checkExpr(pass *analysis.Pass, fnInfo FuncInfo, exp ast.Expr)
 		a.reportSelector(pass, expr, fnInfo)
 
 	case *ast.FuncLit:
-		for _, stmt := range expr.Body.List {
-			a.checkStmt(pass, fnInfo, stmt)
-		}
+		checkStmts(a, pass, fnInfo, expr.Body.List)
 
 	case *ast.TypeAssertExpr:
 		a.checkExpr(pass, fnInfo, expr.X)
@@ -256,10 +254,7 @@ func (a *analyzer) checkExpr(pass *analysis.Pass, fnInfo FuncInfo, exp ast.Expr)
 			return
 		}
 
-		for _, arg := range expr.Args {
-			a.checkExpr(pass, fnInfo, arg)
-		}
-
+		checkExprs(a, pass, fnInfo, expr.Args)
 		a.checkExpr(pass, fnInfo, expr.Fun)
 
 	case *ast.Ident:
