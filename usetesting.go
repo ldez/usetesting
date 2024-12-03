@@ -89,7 +89,7 @@ func NewAnalyzer() *analysis.Analyzer {
 }
 
 func (a *analyzer) run(pass *analysis.Pass) (any, error) {
-	if !a.osChdir && !a.contextBackground && !a.contextTodo && !a.osMkdirTemp && !a.osSetenv {
+	if !a.contextBackground && !a.contextTodo && !a.osChdir && !a.osMkdirTemp && !a.osSetenv && !a.osTempDir && !a.osCreateTemp {
 		return nil, nil
 	}
 
