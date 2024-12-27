@@ -104,7 +104,7 @@ func FunctionFuncLit_ExprStmt(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
-			context.TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+` `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
+			context.TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 		})
 	}
 }

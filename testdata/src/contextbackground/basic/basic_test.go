@@ -100,7 +100,7 @@ func Test_FuncLit_ExprStmt(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
-			context.Background() // want `context\.Background\(\) could be replaced by t\.Context\(\) in .+` `context\.Background\(\) could be replaced by t\.Context\(\) in .+`
+			context.Background() // want `context\.Background\(\) could be replaced by t\.Context\(\) in .+`
 		})
 	}
 }

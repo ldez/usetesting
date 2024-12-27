@@ -1,7 +1,6 @@
 package dot
 
 import (
-	"context"
 	. "context"
 	"errors"
 	"fmt"
@@ -81,7 +80,7 @@ func Test_GoStmt(t *testing.T) {
 }
 
 func Test_GoStmt_arg(t *testing.T) {
-	go func(ctx context.Context) {}(Background()) // want `context\.Background\(\) could be replaced by t\.Context\(\) in .+`
+	go func(ctx Context) {}(Background()) // want `context\.Background\(\) could be replaced by t\.Context\(\) in .+`
 }
 
 func Test_CallExpr_recursive(t *testing.T) {
@@ -101,7 +100,7 @@ func Test_FuncLit_ExprStmt(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
-			Background() // want `context\.Background\(\) could be replaced by t\.Context\(\) in .+` `context\.Background\(\) could be replaced by t\.Context\(\) in .+`
+			Background() // want `context\.Background\(\) could be replaced by t\.Context\(\) in .+`
 		})
 	}
 }
@@ -121,7 +120,7 @@ func Test_SwitchStmt_case(t *testing.T) {
 }
 
 func Test_DeclStmt(t *testing.T) {
-	var ctx context.Context = Background() // want `context\.Background\(\) could be replaced by t\.Context\(\) in .+`
+	var ctx Context = Background() // want `context\.Background\(\) could be replaced by t\.Context\(\) in .+`
 	_ = ctx
 }
 

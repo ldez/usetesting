@@ -104,7 +104,7 @@ func FunctionFuncLit_ExprStmt(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
-			os.TempDir() // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+` `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
+			os.TempDir() // want `os\.TempDir\(\) could be replaced by t\.TempDir\(\) in .+`
 		})
 	}
 }

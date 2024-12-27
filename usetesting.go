@@ -102,16 +102,11 @@ func (a *analyzer) run(pass *analysis.Pass) (any, error) {
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
-		(*ast.FuncLit)(nil),
 	}
 
 	insp.Preorder(nodeFilter, func(node ast.Node) {
-		switch fn := node.(type) {
-		case *ast.FuncDecl:
+		if fn, ok := node.(*ast.FuncDecl); ok {
 			a.checkFunc(pass, fn.Type, fn.Body, fn.Name.Name)
-
-		case *ast.FuncLit:
-			a.checkFunc(pass, fn.Type, fn.Body, "anonymous function")
 		}
 	})
 

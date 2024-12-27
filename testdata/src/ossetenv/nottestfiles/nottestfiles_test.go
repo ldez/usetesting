@@ -104,7 +104,7 @@ func FunctionFuncLit_ExprStmt(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
-			os.Setenv("", "") // want `os\.Setenv\(\) could be replaced by t\.Setenv\(\) in .+` `os\.Setenv\(\) could be replaced by t\.Setenv\(\) in .+`
+			os.Setenv("", "") // want `os\.Setenv\(\) could be replaced by t\.Setenv\(\) in .+`
 		})
 	}
 }
