@@ -1,9 +1,11 @@
 package usetesting
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"slices"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 )
@@ -70,7 +72,7 @@ func (a *analyzer) reportSelector(pass *analysis.Pass, se *ast.SelectorExpr, fnI
 		return
 	}
 
-	a.report(pass, se.Pos(), ident.Name, se.Sel.Name, fnInfo)
+	a.report(pass, se, ident.Name, se.Sel.Name, fnInfo)
 }
 
 func (a *analyzer) reportIdent(pass *analysis.Pass, ident *ast.Ident, fnInfo *FuncInfo) {
@@ -84,38 +86,51 @@ func (a *analyzer) reportIdent(pass *analysis.Pass, ident *ast.Ident, fnInfo *Fu
 
 	pkgName := getPkgNameFromType(pass, ident)
 
-	a.report(pass, ident.Pos(), pkgName, ident.Name, fnInfo)
+	a.report(pass, ident, pkgName, ident.Name, fnInfo)
 }
 
 //nolint:gocyclo // The complexity is expected by the number of cases to check.
-func (a *analyzer) report(pass *analysis.Pass, pos token.Pos, origPkgName, origName string, fnInfo *FuncInfo) {
+func (a *analyzer) report(pass *analysis.Pass, rg analysis.Range, origPkgName, origName string, fnInfo *FuncInfo) {
 	switch {
 	case a.osMkdirTemp && origPkgName == osPkgName && origName == mkdirTempName:
-		report(pass, pos, origPkgName, origName, tempDirName, fnInfo)
+		report(pass, rg, origPkgName, origName, tempDirName, fnInfo)
 
 	case a.osTempDir && origPkgName == osPkgName && origName == tempDirName:
-		report(pass, pos, origPkgName, origName, tempDirName, fnInfo)
+		report(pass, rg, origPkgName, origName, tempDirName, fnInfo)
 
 	case a.osSetenv && origPkgName == osPkgName && origName == setenvName:
-		report(pass, pos, origPkgName, origName, setenvName, fnInfo)
+		report(pass, rg, origPkgName, origName, setenvName, fnInfo)
 
 	case a.geGo124 && a.osChdir && origPkgName == osPkgName && origName == chdirName:
-		report(pass, pos, origPkgName, origName, chdirName, fnInfo)
+		report(pass, rg, origPkgName, origName, chdirName, fnInfo)
 
 	case a.geGo124 && a.contextBackground && origPkgName == contextPkgName && origName == backgroundName:
-		report(pass, pos, origPkgName, origName, contextName, fnInfo)
+		report(pass, rg, origPkgName, origName, contextName, fnInfo)
 
 	case a.geGo124 && a.contextTodo && origPkgName == contextPkgName && origName == todoName:
-		report(pass, pos, origPkgName, origName, contextName, fnInfo)
+		report(pass, rg, origPkgName, origName, contextName, fnInfo)
 	}
 }
 
-func report(pass *analysis.Pass, pos token.Pos, origPkgName, origName, expectName string, fnInfo *FuncInfo) {
-	pass.Reportf(
-		pos,
-		"%s.%s() could be replaced by %s.%s() in %s",
-		origPkgName, origName, fnInfo.ArgName, expectName, fnInfo.Name,
-	)
+func report(pass *analysis.Pass, rg analysis.Range, origPkgName, origName, expectName string, fnInfo *FuncInfo) {
+	diagnostic := analysis.Diagnostic{
+		Pos: rg.Pos(),
+		Message: fmt.Sprintf("%s.%s() could be replaced by %s.%s() in %s",
+			origPkgName, origName, fnInfo.ArgName, expectName, fnInfo.Name,
+		),
+	}
+
+	if !strings.Contains(fnInfo.ArgName, "<") && origPkgName == contextPkgName {
+		diagnostic.SuggestedFixes = append(diagnostic.SuggestedFixes, analysis.SuggestedFix{
+			TextEdits: []analysis.TextEdit{{
+				Pos:     rg.Pos(),
+				End:     rg.End(),
+				NewText: []byte(fmt.Sprintf("%s.%s", fnInfo.ArgName, expectName)),
+			}},
+		})
+	}
+
+	pass.Report(diagnostic)
 }
 
 func isFirstArgEmptyString(ce *ast.CallExpr) bool {
