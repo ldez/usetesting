@@ -9,6 +9,25 @@ import (
 	"testing"
 )
 
+func bar() func(t *testing.T) {
+	return func(t *testing.T) {
+		MkdirTemp("", "") // want `os\.MkdirTemp\(\) could be replaced by t\.TempDir\(\) in .+`
+	}
+}
+
+func bur(t *testing.T) func() {
+	return func() {
+		MkdirTemp("", "") // want `os\.MkdirTemp\(\) could be replaced by t\.TempDir\(\) in .+`
+	}
+}
+
+func bir(t *testing.T) func() {
+	MkdirTemp("", "") // want `os\.MkdirTemp\(\) could be replaced by t\.TempDir\(\) in .+`
+	return func() {
+		MkdirTemp("", "") // want `os\.MkdirTemp\(\) could be replaced by t\.TempDir\(\) in .+`
+	}
+}
+
 func Test_NoName(_ *testing.T) {
 	MkdirTemp("", "") // want `os\.MkdirTemp\(\) could be replaced by <t/b>\.TempDir\(\) in .+`
 }

@@ -9,6 +9,25 @@ import (
 	"testing"
 )
 
+func bar() func(t *testing.T) {
+	return func(t *testing.T) {
+		os.TempDir()
+	}
+}
+
+func bur(t *testing.T) func() {
+	return func() {
+		os.TempDir()
+	}
+}
+
+func bir(t *testing.T) func() {
+	os.TempDir()
+	return func() {
+		os.TempDir()
+	}
+}
+
 func Test_NoName(_ *testing.T) {
 	os.TempDir()
 }

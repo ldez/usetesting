@@ -7,6 +7,25 @@ import (
 	"testing"
 )
 
+func bar() func(t *testing.T) {
+	return func(t *testing.T) {
+		CreateTemp(t.TempDir(), "") // want `os\.CreateTemp\("", \.\.\.\) could be replaced by os\.CreateTemp\(t\.TempDir\(\), \.\.\.\) in .+`
+	}
+}
+
+func bur(t *testing.T) func() {
+	return func() {
+		CreateTemp(t.TempDir(), "") // want `os\.CreateTemp\("", \.\.\.\) could be replaced by os\.CreateTemp\(t\.TempDir\(\), \.\.\.\) in .+`
+	}
+}
+
+func bir(t *testing.T) func() {
+	CreateTemp(t.TempDir(), "") // want `os\.CreateTemp\("", \.\.\.\) could be replaced by os\.CreateTemp\(t\.TempDir\(\), \.\.\.\) in .+`
+	return func() {
+		CreateTemp(t.TempDir(), "") // want `os\.CreateTemp\("", \.\.\.\) could be replaced by os\.CreateTemp\(t\.TempDir\(\), \.\.\.\) in .+`
+	}
+}
+
 func Test_NoName(_ *testing.T) {
 	CreateTemp("", "") // want `os\.CreateTemp\("", \.\.\.\) could be replaced by os\.CreateTemp\(<t/b>\.TempDir\(\), \.\.\.\) in .+`
 }

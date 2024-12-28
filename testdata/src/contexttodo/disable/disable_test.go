@@ -9,6 +9,25 @@ import (
 	"testing"
 )
 
+func bar() func(t *testing.T) {
+	return func(t *testing.T) {
+		context.TODO()
+	}
+}
+
+func bur(t *testing.T) func() {
+	return func() {
+		context.TODO()
+	}
+}
+
+func bir(t *testing.T) func() {
+	context.TODO()
+	return func() {
+		context.TODO()
+	}
+}
+
 func Test_NoName(_ *testing.T) {
 	context.TODO()
 }

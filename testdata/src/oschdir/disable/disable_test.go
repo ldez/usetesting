@@ -10,6 +10,25 @@ import (
 	"testing"
 )
 
+func bar() func(t *testing.T) {
+	return func(t *testing.T) {
+		os.Chdir("")
+	}
+}
+
+func bur(t *testing.T) func() {
+	return func() {
+		os.Chdir("")
+	}
+}
+
+func bir(t *testing.T) func() {
+	os.Chdir("")
+	return func() {
+		os.Chdir("")
+	}
+}
+
 func Test_NoName(_ *testing.T) {
 	os.Chdir("")
 }

@@ -9,6 +9,25 @@ import (
 	"testing"
 )
 
+func bar() func(t *testing.T) {
+	return func(t *testing.T) {
+		os.MkdirTemp("", "")
+	}
+}
+
+func bur(t *testing.T) func() {
+	return func() {
+		os.MkdirTemp("", "")
+	}
+}
+
+func bir(t *testing.T) func() {
+	os.MkdirTemp("", "")
+	return func() {
+		os.MkdirTemp("", "")
+	}
+}
+
 func Test_NoName(_ *testing.T) {
 	os.MkdirTemp("", "")
 }

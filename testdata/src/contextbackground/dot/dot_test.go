@@ -9,6 +9,25 @@ import (
 	"testing"
 )
 
+func bar() func(t *testing.T) {
+	return func(t *testing.T) {
+		Background() // want `context\.Background\(\) could be replaced by t\.Context\(\) in .+`
+	}
+}
+
+func bur(t *testing.T) func() {
+	return func() {
+		Background() // want `context\.Background\(\) could be replaced by t\.Context\(\) in .+`
+	}
+}
+
+func bir(t *testing.T) func() {
+	Background() // want `context\.Background\(\) could be replaced by t\.Context\(\) in .+`
+	return func() {
+		Background() // want `context\.Background\(\) could be replaced by t\.Context\(\) in .+`
+	}
+}
+
 func Test_NoName(_ *testing.T) {
 	Background() // want `context\.Background\(\) could be replaced by <t/b>\.Context\(\) in .+`
 }

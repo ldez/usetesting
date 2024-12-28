@@ -1,7 +1,6 @@
 package dot
 
 import (
-	"context"
 	. "context"
 	"errors"
 	"fmt"
@@ -9,6 +8,25 @@ import (
 	"strings"
 	"testing"
 )
+
+func bar() func(t *testing.T) {
+	return func(t *testing.T) {
+		TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
+	}
+}
+
+func bur(t *testing.T) func() {
+	return func() {
+		TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
+	}
+}
+
+func bir(t *testing.T) func() {
+	TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
+	return func() {
+		TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
+	}
+}
 
 func Test_NoName(_ *testing.T) {
 	TODO() // want `context\.TODO\(\) could be replaced by <t/b>\.Context\(\) in .+`
@@ -81,7 +99,7 @@ func Test_GoStmt(t *testing.T) {
 }
 
 func Test_GoStmt_arg(t *testing.T) {
-	go func(ctx context.Context) {}(TODO()) // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
+	go func(ctx Context) {}(TODO()) // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 }
 
 func Test_CallExpr_recursive(t *testing.T) {
@@ -121,7 +139,7 @@ func Test_SwitchStmt_case(t *testing.T) {
 }
 
 func Test_DeclStmt(t *testing.T) {
-	var ctx context.Context = TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
+	var ctx Context = TODO() // want `context\.TODO\(\) could be replaced by t\.Context\(\) in .+`
 	_ = ctx
 }
 

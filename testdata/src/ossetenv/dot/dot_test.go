@@ -9,6 +9,25 @@ import (
 	"testing"
 )
 
+func bar() func(t *testing.T) {
+	return func(t *testing.T) {
+		Setenv("foo", "bar") // want `os\.Setenv\(\) could be replaced by t\.Setenv\(\) in .+`
+	}
+}
+
+func bur(t *testing.T) func() {
+	return func() {
+		Setenv("foo", "bar") // want `os\.Setenv\(\) could be replaced by t\.Setenv\(\) in .+`
+	}
+}
+
+func bir(t *testing.T) func() {
+	Setenv("foo", "bar") // want `os\.Setenv\(\) could be replaced by t\.Setenv\(\) in .+`
+	return func() {
+		Setenv("foo", "bar") // want `os\.Setenv\(\) could be replaced by t\.Setenv\(\) in .+`
+	}
+}
+
 func Test_NoName(_ *testing.T) {
 	Setenv("", "") // want `os\.Setenv\(\) could be replaced by <t/b>\.Setenv\(\) in .+`
 }

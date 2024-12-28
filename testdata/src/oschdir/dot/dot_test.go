@@ -10,6 +10,25 @@ import (
 	"testing"
 )
 
+func bar() func(t *testing.T) {
+	return func(t *testing.T) {
+		Chdir("") // want `os\.Chdir\(\) could be replaced by t\.Chdir\(\) in .+`
+	}
+}
+
+func bur(t *testing.T) func() {
+	return func() {
+		Chdir("") // want `os\.Chdir\(\) could be replaced by t\.Chdir\(\) in .+`
+	}
+}
+
+func bir(t *testing.T) func() {
+	Chdir("") // want `os\.Chdir\(\) could be replaced by t\.Chdir\(\) in .+`
+	return func() {
+		Chdir("") // want `os\.Chdir\(\) could be replaced by t\.Chdir\(\) in .+`
+	}
+}
+
 func Test_NoName(_ *testing.T) {
 	Chdir("") // want `os\.Chdir\(\) could be replaced by <t/b>\.Chdir\(\) in .+`
 }

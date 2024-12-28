@@ -102,15 +102,63 @@ func (a *analyzer) run(pass *analysis.Pass) (any, error) {
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
+		(*ast.FuncLit)(nil),
 	}
 
-	insp.Preorder(nodeFilter, func(node ast.Node) {
-		if fn, ok := node.(*ast.FuncDecl); ok {
-			a.checkFunc(pass, fn.Type, fn.Body, fn.Name.Name)
+	insp.WithStack(nodeFilter, func(node ast.Node, push bool, stack []ast.Node) (proceed bool) {
+		if !push {
+			return false
 		}
+
+		switch fn := node.(type) {
+		case *ast.FuncDecl:
+			a.checkFunc(pass, fn.Type, fn.Body, fn.Name.Name)
+
+		case *ast.FuncLit:
+			if hasParentFunc(stack) {
+				return true
+			}
+
+			a.checkFunc(pass, fn.Type, fn.Body, "anonymous function")
+		}
+
+		return true
 	})
 
 	return nil, nil
+}
+
+func (a *analyzer) checkFunc(pass *analysis.Pass, ft *ast.FuncType, block *ast.BlockStmt, fnName string) {
+	if len(ft.Params.List) < 1 {
+		return
+	}
+
+	fnInfo := checkTestFunctionSignature(ft.Params.List[0], fnName)
+	if fnInfo == nil {
+		return
+	}
+
+	a.check(pass, block, fnInfo)
+}
+
+func (a *analyzer) check(pass *analysis.Pass, fn ast.Node, fnInfo *FuncInfo) {
+	ast.Inspect(fn, func(n ast.Node) bool {
+		switch v := n.(type) {
+		case *ast.SelectorExpr:
+			a.reportSelector(pass, v, fnInfo)
+			return false
+
+		case *ast.Ident:
+			a.reportIdent(pass, v, fnInfo)
+
+		case *ast.CallExpr:
+			if a.reportCallExpr(pass, v, fnInfo) {
+				return false
+			}
+		}
+
+		return true
+	})
 }
 
 func (a *analyzer) isGoSupported(pass *analysis.Pass) bool {
@@ -141,147 +189,47 @@ func (a *analyzer) isGoSupported(pass *analysis.Pass) bool {
 	return v >= 124
 }
 
-func (a *analyzer) checkFunc(pass *analysis.Pass, ft *ast.FuncType, block *ast.BlockStmt, fnName string) {
-	if len(ft.Params.List) < 1 {
-		return
-	}
+func hasParentFunc(stack []ast.Node) bool {
+	// -2 because the last parent is the node.
+	const skipSelf = 2
 
-	fnInfo := checkTestFunctionSignature(ft.Params.List[0], testingPkgName, fnName)
-	if fnInfo == nil {
-		return
-	}
+	// skip 0 because it's always [*ast.File].
+	for i := len(stack) - skipSelf; i > 0; i-- {
+		s := stack[i]
 
-	checkStmts(a, pass, fnInfo, block.List)
-}
+		switch fn := s.(type) {
+		case *ast.FuncDecl:
+			if len(fn.Type.Params.List) < 1 {
+				continue
+			}
 
-//nolint:funlen // The complexity is expected by the number of [ast.Stmt] variants.
-func (a *analyzer) checkStmt(pass *analysis.Pass, fnInfo *FuncInfo, stmt ast.Stmt) {
-	if stmt == nil {
-		return
-	}
+			if checkTestFunctionSignature(fn.Type.Params.List[0], fn.Name.Name) != nil {
+				return true
+			}
 
-	switch stmt := stmt.(type) {
-	case *ast.ExprStmt:
-		a.checkExpr(pass, fnInfo, stmt.X)
+		case *ast.FuncLit:
+			if len(fn.Type.Params.List) < 1 {
+				continue
+			}
 
-	case *ast.IfStmt:
-		a.checkStmt(pass, fnInfo, stmt.Init)
-
-	case *ast.AssignStmt:
-		a.checkExpr(pass, fnInfo, stmt.Rhs[0])
-
-	case *ast.ForStmt:
-		a.checkStmt(pass, fnInfo, stmt.Body)
-
-	case *ast.DeferStmt:
-		a.checkExpr(pass, fnInfo, stmt.Call)
-
-	case *ast.RangeStmt:
-		a.checkStmt(pass, fnInfo, stmt.Body)
-
-	case *ast.ReturnStmt:
-		checkExprs(a, pass, fnInfo, stmt.Results)
-
-	case *ast.DeclStmt:
-		genDecl, ok := stmt.Decl.(*ast.GenDecl)
-		if !ok {
-			return
+			if checkTestFunctionSignature(fn.Type.Params.List[0], "anonymous function") != nil {
+				return true
+			}
 		}
-
-		valSpec, ok := genDecl.Specs[0].(*ast.ValueSpec) // TODO for?
-		if !ok {
-			return
-		}
-
-		checkExprs(a, pass, fnInfo, valSpec.Values)
-
-	case *ast.GoStmt:
-		a.checkExpr(pass, fnInfo, stmt.Call)
-
-	case *ast.CaseClause:
-		checkExprs(a, pass, fnInfo, stmt.List)
-		checkStmts(a, pass, fnInfo, stmt.Body)
-
-	case *ast.SwitchStmt:
-		a.checkExpr(pass, fnInfo, stmt.Tag)
-		a.checkStmt(pass, fnInfo, stmt.Body)
-
-	case *ast.TypeSwitchStmt:
-		a.checkStmt(pass, fnInfo, stmt.Assign)
-		a.checkStmt(pass, fnInfo, stmt.Body)
-
-	case *ast.CommClause:
-		checkStmts(a, pass, fnInfo, stmt.Body)
-
-	case *ast.SelectStmt:
-		a.checkStmt(pass, fnInfo, stmt.Body)
-
-	case *ast.BlockStmt:
-		checkStmts(a, pass, fnInfo, stmt.List)
-
-	case *ast.BranchStmt, *ast.SendStmt, *ast.IncDecStmt, *ast.LabeledStmt:
-		// skip
-
-	default:
-		// skip
 	}
+
+	return false
 }
 
-func (a *analyzer) checkExpr(pass *analysis.Pass, fnInfo *FuncInfo, exp ast.Expr) {
-	switch expr := exp.(type) {
-	case *ast.BinaryExpr:
-		a.checkExpr(pass, fnInfo, expr.X)
-		a.checkExpr(pass, fnInfo, expr.Y)
-
-	case *ast.SelectorExpr:
-		a.reportSelector(pass, expr, fnInfo)
-
-	case *ast.FuncLit:
-		checkStmts(a, pass, fnInfo, expr.Body.List)
-
-	case *ast.TypeAssertExpr:
-		a.checkExpr(pass, fnInfo, expr.X)
-
-	case *ast.CallExpr:
-		if a.reportCallExpr(pass, expr, fnInfo) {
-			return
-		}
-
-		checkExprs(a, pass, fnInfo, expr.Args)
-		a.checkExpr(pass, fnInfo, expr.Fun)
-
-	case *ast.Ident:
-		a.reportIdent(pass, expr, fnInfo)
-
-	case *ast.BasicLit:
-		// skip
-
-	default:
-		// skip
-	}
-}
-
-func checkStmts[T ast.Stmt](a *analyzer, pass *analysis.Pass, fnInfo *FuncInfo, stmts []T) {
-	for _, stmt := range stmts {
-		a.checkStmt(pass, fnInfo, stmt)
-	}
-}
-
-func checkExprs(a *analyzer, pass *analysis.Pass, fnInfo *FuncInfo, exprs []ast.Expr) {
-	for _, expr := range exprs {
-		a.checkExpr(pass, fnInfo, expr)
-	}
-}
-
-func checkTestFunctionSignature(arg *ast.Field, pkgName, fnName string) *FuncInfo {
+func checkTestFunctionSignature(arg *ast.Field, fnName string) *FuncInfo {
 	switch at := arg.Type.(type) {
 	case *ast.StarExpr:
 		if se, ok := at.X.(*ast.SelectorExpr); ok {
-			return createFuncInfo(arg, "<t/b>", se, pkgName, fnName, "T", "B")
+			return createFuncInfo(arg, "<t/b>", se, testingPkgName, fnName, "T", "B")
 		}
 
 	case *ast.SelectorExpr:
-		return createFuncInfo(arg, "tb", at, pkgName, fnName, "TB")
+		return createFuncInfo(arg, "tb", at, testingPkgName, fnName, "TB")
 	}
 
 	return nil
