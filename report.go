@@ -1,8 +1,10 @@
 package usetesting
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
+	"go/printer"
 	"go/token"
 	"slices"
 	"strings"
@@ -34,10 +36,7 @@ func (a *analyzer) reportCallExpr(pass *analysis.Pass, ce *ast.CallExpr, fnInfo 
 		}
 
 		if expr.Name == osPkgName && isFirstArgEmptyString(ce) {
-			pass.Reportf(ce.Pos(),
-				`%s.%s("", ...) could be replaced by %[1]s.%[2]s(%s.%s(), ...) in %s`,
-				osPkgName, createTempName, fnInfo.ArgName, tempDirName, fnInfo.Name,
-			)
+			pass.Report(diagnosticOSCreateTemp(ce, fnInfo))
 
 			return true
 		}
@@ -50,16 +49,57 @@ func (a *analyzer) reportCallExpr(pass *analysis.Pass, ce *ast.CallExpr, fnInfo 
 		pkgName := getPkgNameFromType(pass, fun)
 
 		if pkgName == osPkgName && isFirstArgEmptyString(ce) {
-			pass.Reportf(ce.Pos(),
-				`%s.%s("", ...) could be replaced by %[1]s.%[2]s(%s.%s(), ...) in %s`,
-				osPkgName, createTempName, fnInfo.ArgName, tempDirName, fnInfo.Name,
-			)
+			pass.Report(diagnosticOSCreateTemp(ce, fnInfo))
 
 			return true
 		}
 	}
 
 	return false
+}
+
+func diagnosticOSCreateTemp(ce *ast.CallExpr, fnInfo *FuncInfo) analysis.Diagnostic {
+	diagnostic := analysis.Diagnostic{
+		Pos: ce.Pos(),
+		Message: fmt.Sprintf(
+			`%s.%s("", ...) could be replaced by %[1]s.%[2]s(%s.%s(), ...) in %s`,
+			osPkgName, createTempName, fnInfo.ArgName, tempDirName, fnInfo.Name,
+		),
+	}
+
+	// Skip `<t/b>` arg names.
+	if !strings.Contains(fnInfo.ArgName, "<") {
+		g := &ast.CallExpr{
+			Fun: ce.Fun,
+			Args: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: fnInfo.ArgName},
+						Sel: &ast.Ident{Name: tempDirName},
+					},
+				},
+				ce.Args[1],
+			},
+		}
+
+		buf := bytes.NewBuffer(nil)
+
+		err := printer.Fprint(buf, token.NewFileSet(), g)
+		if err != nil {
+			diagnostic.Message = fmt.Sprintf("Suggested fix error: %v", err)
+			return diagnostic
+		}
+
+		diagnostic.SuggestedFixes = append(diagnostic.SuggestedFixes, analysis.SuggestedFix{
+			TextEdits: []analysis.TextEdit{{
+				Pos:     ce.Pos(),
+				End:     ce.End(),
+				NewText: buf.Bytes(),
+			}},
+		})
+	}
+
+	return diagnostic
 }
 
 func (a *analyzer) reportSelector(pass *analysis.Pass, se *ast.SelectorExpr, fnInfo *FuncInfo) {
@@ -120,6 +160,8 @@ func report(pass *analysis.Pass, rg analysis.Range, origPkgName, origName, expec
 		),
 	}
 
+	// Skip `<t/b>` arg names.
+	// Only applies on `context.XXX` because the nb of return parameters is the same as the replacement.
 	if !strings.Contains(fnInfo.ArgName, "<") && origPkgName == contextPkgName {
 		diagnostic.SuggestedFixes = append(diagnostic.SuggestedFixes, analysis.SuggestedFix{
 			TextEdits: []analysis.TextEdit{{
