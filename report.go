@@ -102,54 +102,68 @@ func diagnosticOSCreateTemp(ce *ast.CallExpr, fnInfo *FuncInfo) analysis.Diagnos
 	return diagnostic
 }
 
-func (a *analyzer) reportSelector(pass *analysis.Pass, se *ast.SelectorExpr, fnInfo *FuncInfo) {
+func (a *analyzer) reportSelector(pass *analysis.Pass, se *ast.SelectorExpr, fnInfo *FuncInfo) bool {
 	if se.Sel == nil || !se.Sel.IsExported() {
-		return
+		return false
 	}
 
 	ident, ok := se.X.(*ast.Ident)
 	if !ok {
-		return
+		return false
 	}
 
-	a.report(pass, se, ident.Name, se.Sel.Name, fnInfo)
+	return a.report(pass, se, ident.Name, se.Sel.Name, fnInfo)
 }
 
-func (a *analyzer) reportIdent(pass *analysis.Pass, ident *ast.Ident, fnInfo *FuncInfo) {
+func (a *analyzer) reportIdent(pass *analysis.Pass, ident *ast.Ident, fnInfo *FuncInfo) bool {
 	if !ident.IsExported() {
-		return
+		return false
 	}
 
 	if !slices.Contains(a.fieldNames, ident.Name) {
-		return
+		return false
 	}
 
 	pkgName := getPkgNameFromType(pass, ident)
 
-	a.report(pass, ident, pkgName, ident.Name, fnInfo)
+	return a.report(pass, ident, pkgName, ident.Name, fnInfo)
 }
 
 //nolint:gocyclo // The complexity is expected by the number of cases to check.
-func (a *analyzer) report(pass *analysis.Pass, rg analysis.Range, origPkgName, origName string, fnInfo *FuncInfo) {
+func (a *analyzer) report(pass *analysis.Pass, rg analysis.Range, origPkgName, origName string, fnInfo *FuncInfo) bool {
 	switch {
 	case a.osMkdirTemp && origPkgName == osPkgName && origName == mkdirTempName:
 		report(pass, rg, origPkgName, origName, tempDirName, fnInfo)
 
+		return true
+
 	case a.osTempDir && origPkgName == osPkgName && origName == tempDirName:
 		report(pass, rg, origPkgName, origName, tempDirName, fnInfo)
+
+		return true
 
 	case a.osSetenv && origPkgName == osPkgName && origName == setenvName:
 		report(pass, rg, origPkgName, origName, setenvName, fnInfo)
 
+		return true
+
 	case a.geGo124 && a.osChdir && origPkgName == osPkgName && origName == chdirName:
 		report(pass, rg, origPkgName, origName, chdirName, fnInfo)
+
+		return true
 
 	case a.geGo124 && a.contextBackground && origPkgName == contextPkgName && origName == backgroundName:
 		report(pass, rg, origPkgName, origName, contextName, fnInfo)
 
+		return true
+
 	case a.geGo124 && a.contextTodo && origPkgName == contextPkgName && origName == todoName:
 		report(pass, rg, origPkgName, origName, contextName, fnInfo)
+
+		return true
 	}
+
+	return false
 }
 
 func report(pass *analysis.Pass, rg analysis.Range, origPkgName, origName, expectName string, fnInfo *FuncInfo) {

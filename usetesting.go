@@ -145,16 +145,13 @@ func (a *analyzer) check(pass *analysis.Pass, fn ast.Node, fnInfo *FuncInfo) {
 	ast.Inspect(fn, func(n ast.Node) bool {
 		switch v := n.(type) {
 		case *ast.SelectorExpr:
-			a.reportSelector(pass, v, fnInfo)
-			return false
+			return !a.reportSelector(pass, v, fnInfo)
 
 		case *ast.Ident:
-			a.reportIdent(pass, v, fnInfo)
+			return !a.reportIdent(pass, v, fnInfo)
 
 		case *ast.CallExpr:
-			if a.reportCallExpr(pass, v, fnInfo) {
-				return false
-			}
+			return !a.reportCallExpr(pass, v, fnInfo)
 		}
 
 		return true

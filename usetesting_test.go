@@ -34,7 +34,7 @@ func TestAnalyzer(t *testing.T) {
 		{dir: "ossetenv/basic", options: map[string]string{"ossetenv": "true"}},
 		{dir: "ossetenv/dot", options: map[string]string{"ossetenv": "true"}},
 		{dir: "ossetenv/nottestfiles", options: map[string]string{"ossetenv": "true"}},
-		{dir: "ossetenv/disable"},
+		{dir: "ossetenv/disable", options: map[string]string{"ossetenv": "false"}},
 
 		{dir: "ostempdir/basic", options: map[string]string{"ostempdir": "true"}},
 		{dir: "ostempdir/dot", options: map[string]string{"ostempdir": "true"}},
