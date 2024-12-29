@@ -138,11 +138,7 @@ func (a *analyzer) checkFunc(pass *analysis.Pass, ft *ast.FuncType, block *ast.B
 		return
 	}
 
-	a.check(pass, block, fnInfo)
-}
-
-func (a *analyzer) check(pass *analysis.Pass, fn ast.Node, fnInfo *FuncInfo) {
-	ast.Inspect(fn, func(n ast.Node) bool {
+	ast.Inspect(block, func(n ast.Node) bool {
 		switch v := n.(type) {
 		case *ast.SelectorExpr:
 			return !a.reportSelector(pass, v, fnInfo)

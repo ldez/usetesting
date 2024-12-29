@@ -135,35 +135,26 @@ func (a *analyzer) report(pass *analysis.Pass, rg analysis.Range, origPkgName, o
 	case a.osMkdirTemp && origPkgName == osPkgName && origName == mkdirTempName:
 		report(pass, rg, origPkgName, origName, tempDirName, fnInfo)
 
-		return true
-
 	case a.osTempDir && origPkgName == osPkgName && origName == tempDirName:
 		report(pass, rg, origPkgName, origName, tempDirName, fnInfo)
-
-		return true
 
 	case a.osSetenv && origPkgName == osPkgName && origName == setenvName:
 		report(pass, rg, origPkgName, origName, setenvName, fnInfo)
 
-		return true
-
 	case a.geGo124 && a.osChdir && origPkgName == osPkgName && origName == chdirName:
 		report(pass, rg, origPkgName, origName, chdirName, fnInfo)
-
-		return true
 
 	case a.geGo124 && a.contextBackground && origPkgName == contextPkgName && origName == backgroundName:
 		report(pass, rg, origPkgName, origName, contextName, fnInfo)
 
-		return true
-
 	case a.geGo124 && a.contextTodo && origPkgName == contextPkgName && origName == todoName:
 		report(pass, rg, origPkgName, origName, contextName, fnInfo)
 
-		return true
+	default:
+		return false
 	}
 
-	return false
+	return true
 }
 
 func report(pass *analysis.Pass, rg analysis.Range, origPkgName, origName, expectName string, fnInfo *FuncInfo) {
