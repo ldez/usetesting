@@ -47,6 +47,10 @@ linters-settings:
 
 ### As a CLI
 
+```shell
+go install github.com/ldez/usetesting/cmd/usetesting@latest
+```
+
 ```
 usetesting: Reports uses of functions with replacement inside the testing package.
 
