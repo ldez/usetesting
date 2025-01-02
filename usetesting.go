@@ -172,7 +172,18 @@ func (a *analyzer) isGoSupported(pass *analysis.Pass) bool {
 		return true
 	}
 
-	vParts := strings.Split(strings.TrimPrefix(pkgVersion, "go"), ".")
+	raw := strings.TrimPrefix(pkgVersion, "go")
+
+	// prerelease version (go1.24rc1)
+	idx := strings.IndexFunc(raw, func(r rune) bool {
+		return (r < '0' || r > '9') && r != '.'
+	})
+
+	if idx != -1 {
+		raw = raw[:idx]
+	}
+
+	vParts := strings.Split(raw, ".")
 
 	v, err := strconv.Atoi(strings.Join(vParts[:2], ""))
 	if err != nil {
