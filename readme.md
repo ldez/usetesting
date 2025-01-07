@@ -11,6 +11,10 @@ Detects when some calls can be replaced by methods from the testing package.
 Recommended.
 
 ```yml
+linters:
+  enable:
+    - usetesting
+
 linters-settings:
   usetesting:
     # Enable/disable `os.CreateTemp("", ...)` detections.
