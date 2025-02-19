@@ -103,7 +103,6 @@ func (a *analyzer) run(pass *analysis.Pass) (any, error) {
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
 		(*ast.FuncLit)(nil),
-		(*ast.CallExpr)(nil),
 	}
 
 	insp.WithStack(nodeFilter, func(node ast.Node, push bool, stack []ast.Node) (proceed bool) {
@@ -114,17 +113,6 @@ func (a *analyzer) run(pass *analysis.Pass) (any, error) {
 		switch fn := node.(type) {
 		case *ast.FuncDecl:
 			a.checkFunc(pass, fn.Type, fn.Body, fn.Name.Name)
-		case *ast.CallExpr:
-			sel, ok := fn.Fun.(*ast.SelectorExpr)
-			if !ok {
-				return true
-			}
-
-			if sel.Sel.Name == "Cleanup" {
-				if fn.Fun.(*ast.SelectorExpr).X.(*ast.Ident).Obj.Decl.(*ast.Field).Type.(*ast.StarExpr).X.(*ast.SelectorExpr).X.(*ast.Ident).Name == "testing" {
-					return false
-				}
-			}
 		case *ast.FuncLit:
 			if hasParentFunc(stack) {
 				return true
