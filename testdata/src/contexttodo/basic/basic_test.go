@@ -206,6 +206,8 @@ func Test_SwitchStmt_Tag(t *testing.T) {
 	}
 }
 
-func foobar() {
-	context.TODO()
+func Test_IgnoreCleanup(t *testing.T) {
+	t.Cleanup(func() {
+		context.TODO()
+	})
 }
