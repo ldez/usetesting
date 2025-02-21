@@ -26,8 +26,8 @@ linters-settings:
     os-mkdir-temp: false
 
     # Enable/disable `os.Setenv()` detections.
-    # Default: false
-    os-setenv: true
+    # Default: true
+    os-setenv: false
 
     # Enable/disable `os.TempDir()` detections.
     # Default: false
