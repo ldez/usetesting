@@ -113,7 +113,6 @@ func (a *analyzer) run(pass *analysis.Pass) (any, error) {
 		switch fn := node.(type) {
 		case *ast.FuncDecl:
 			a.checkFunc(pass, fn.Type, fn.Body, fn.Name.Name)
-
 		case *ast.FuncLit:
 			if hasParentFunc(stack) {
 				return true
@@ -142,16 +141,55 @@ func (a *analyzer) checkFunc(pass *analysis.Pass, ft *ast.FuncType, block *ast.B
 		switch v := n.(type) {
 		case *ast.SelectorExpr:
 			return !a.reportSelector(pass, v, fnInfo)
-
 		case *ast.Ident:
 			return !a.reportIdent(pass, v, fnInfo)
-
 		case *ast.CallExpr:
+			if a.isInCleanup(v) {
+				return false
+			}
+
 			return !a.reportCallExpr(pass, v, fnInfo)
 		}
 
 		return true
 	})
+}
+
+func (a *analyzer) isInCleanup(expr *ast.CallExpr) bool {
+	s, ok := expr.Fun.(*ast.SelectorExpr)
+	if ok {
+		if s.Sel.Name == "Cleanup" && isIdentifierTestingPackage(s.X.(*ast.Ident)) {
+			return true
+		}
+	}
+	return false
+}
+
+func isIdentifierTestingPackage(ident *ast.Ident) bool {
+	if ident == nil {
+		return false
+	}
+
+	field, ok := ident.Obj.Decl.(*ast.Field)
+	if !ok {
+		return false
+	}
+
+	starExpr, ok := field.Type.(*ast.StarExpr)
+	if !ok {
+		return false
+	}
+
+	selExpr, ok := starExpr.X.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+
+	ident, ok = selExpr.X.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	return ident.Name == testingPkgName
 }
 
 func (a *analyzer) isGoSupported(pass *analysis.Pass) bool {
