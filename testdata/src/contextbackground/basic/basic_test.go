@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func bar() func(t *testing.T) {
@@ -208,4 +209,23 @@ func Test_SwitchStmt_Tag(t *testing.T) {
 
 func foobar() {
 	context.Background()
+}
+
+func Test_Ignores_Inside_Cleanup(t *testing.T) {
+	fakeSlowClose := func(ctx context.Context) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Second):
+			return nil
+		}
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+		defer cancel()
+		err := fakeSlowClose(ctx)
+		if err != nil {
+			t.Errorf("fakeSlowClose timed out on closing during cleanup: %v", err)
+		}
+	})
 }

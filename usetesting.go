@@ -146,6 +146,15 @@ func (a *analyzer) checkFunc(pass *analysis.Pass, ft *ast.FuncType, block *ast.B
 			return !a.reportIdent(pass, v, fnInfo, geGo124)
 
 		case *ast.CallExpr:
+			// Don't check inside t.Cleanup() calls
+			if selx, ok := v.Fun.(*ast.SelectorExpr); ok {
+				if idt, ok := selx.X.(*ast.Ident); ok {
+					if selx.Sel.Name == "Cleanup" && idt.Name == fnInfo.ArgName {
+						return false
+					}
+				}
+			}
+
 			return !a.reportCallExpr(pass, v, fnInfo)
 		}
 
