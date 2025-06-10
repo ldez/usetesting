@@ -1,7 +1,7 @@
 <!--
 PLEASE READ THIS MESSAGE.
 
-The draft or WIP pull request are not accepted.
+Draft or WIP pull requests are not accepted.
 
 The PR should be ready to be reviewed.
 
