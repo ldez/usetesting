@@ -16,15 +16,15 @@ func TestAnalyzer(t *testing.T) {
 		{dir: "oschdir/nottestfiles"},
 		{dir: "oschdir/disable", options: map[string]string{"oschdir": "false"}},
 
-		{dir: "contextbackground/basic"},
-		{dir: "contextbackground/dot"},
-		{dir: "contextbackground/nottestfiles"},
-		{dir: "contextbackground/disable", options: map[string]string{"contextbackground": "false"}},
+		{dir: "contextbackground/basic", options: map[string]string{"contextbackground": "true"}},
+		{dir: "contextbackground/dot", options: map[string]string{"contextbackground": "true"}},
+		{dir: "contextbackground/nottestfiles", options: map[string]string{"contextbackground": "true"}},
+		{dir: "contextbackground/disable"},
 
-		{dir: "contexttodo/basic"},
-		{dir: "contexttodo/dot"},
-		{dir: "contexttodo/nottestfiles"},
-		{dir: "contexttodo/disable", options: map[string]string{"contexttodo": "false"}},
+		{dir: "contexttodo/basic", options: map[string]string{"contexttodo": "true"}},
+		{dir: "contexttodo/dot", options: map[string]string{"contexttodo": "true"}},
+		{dir: "contexttodo/nottestfiles", options: map[string]string{"contexttodo": "true"}},
+		{dir: "contexttodo/disable"},
 
 		{dir: "osmkdirtemp/basic"},
 		{dir: "osmkdirtemp/dot"},
