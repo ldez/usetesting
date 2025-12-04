@@ -172,7 +172,7 @@ func report(pass *analysis.Pass, rg analysis.Range, origPkgName, origName, expec
 			TextEdits: []analysis.TextEdit{{
 				Pos:     rg.Pos(),
 				End:     rg.End(),
-				NewText: []byte(fmt.Sprintf("%s.%s", fnInfo.ArgName, expectName)),
+				NewText: fmt.Appendf(nil, "%s.%s", fnInfo.ArgName, expectName),
 			}},
 		})
 	}
